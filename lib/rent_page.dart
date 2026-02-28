@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 class RentPage extends StatefulWidget {
   const RentPage({super.key});
@@ -10,17 +11,58 @@ class RentPage extends StatefulWidget {
 class _RentPageState extends State<RentPage> {
   String selectedDuration = 'per day';
 
+  // --- OFFER BANNER LOGIC ---
+  final PageController _pageController = PageController();
+  int _currentOfferIndex = 0;
+  Timer? _offerTimer;
+  final List<String> _offerImages = [
+    'assets/images/jacket_img.png',
+    'assets/images/jacket_img.png',
+    'assets/images/jacket_img.png',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _startOfferTimer();
+  }
+
+  @override
+  void dispose() {
+    _offerTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startOfferTimer() {
+    _offerTimer = Timer.periodic(const Duration(seconds: 9), (Timer timer) {
+      if (_currentOfferIndex < _offerImages.length - 1) {
+        _currentOfferIndex++;
+      } else {
+        _currentOfferIndex = 0;
+      }
+
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentOfferIndex,
+          duration: const Duration(milliseconds: 900),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D3454), // Exact Dark Navy from image
+      backgroundColor: const Color(0xFF0D3454),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // --- Custom Header ---
+            // --- FIXED SECTION: Header ---
             Padding(
-              padding: const EdgeInsets.only(left: 20, top: 5, bottom: 25),
+              padding: const EdgeInsets.only(left: 20, top: 5, bottom: 125),
               child: Row(
                 children: [
                   Image.asset("assets/icons/arrow_icon.png", height: 24, width: 24),
@@ -30,124 +72,155 @@ class _RentPageState extends State<RentPage> {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      // fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // --- Main Form Card ---
+            // --- MAIN CONTAINER ---
             Expanded(
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // --- Image Section ---
-                      Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              height: 170,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                image: const DecorationImage(
-                                  image: NetworkImage('https://images.pexels.com/photos/10312002/pexels-photo-10312002.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-                                  fit: BoxFit.cover,
+                child: Column(
+                  children: [
+                    // --- FIXED SECTION: Image & Indicators ---
+                    Transform.translate(
+                      offset: const Offset(0, -90),
+                      child: Column(
+                        children: [
+                          Center(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                SizedBox(
+                                  height: 150,
+                                  width: 300,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: PageView.builder(
+                                      controller: _pageController,
+                                      onPageChanged: (index) {
+                                        setState(() {
+                                          _currentOfferIndex = index;
+                                        });
+                                      },
+                                      itemCount: _offerImages.length,
+                                      itemBuilder: (context, index) {
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            image: DecorationImage(
+                                              image: AssetImage(_offerImages[index]),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 10,
+                                  right: 10,
+                                  child: _buildAddImageButton(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          // Indicators remain fixed above the scrollable area
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              _offerImages.length,
+                              (index) => Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                width: index == _currentOfferIndex ? 24 : 6,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  color: index == _currentOfferIndex
+                                      ? const Color(0xFF113F67)
+                                      : const Color(0xFF16BCE6),
                                 ),
                               ),
                             ),
-                            Positioned(
-                              bottom: 10,
-                              right: 10,
-                              child: _buildAddImageButton(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      
-                      // --- Indicators ---
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildDot(const Color(0xFF0D3454), width: 18),
-                          _buildDot(const Color(0xFF00B0FF)),
-                          _buildDot(const Color(0xFF00B0FF)),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                    ),
 
-                      // --- Input Fields ---
-                      _buildTextField("Title :"),
-                      _buildTextField("Subtitle :"),
-                      _buildTextField("Description :", maxLines: 5),
-                      _buildTextField("Subtitle :"),
+                    // --- SCROLLABLE SECTION: Form Fields (From Code 2) ---
+                    Expanded(
+                      child: Transform.translate(
+                        offset: const Offset(0, -66), // Adjust to follow the indicator spacing
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              _buildTextField("Title :"),
+                              _buildTextField("Subtitle :"),
+                              _buildTextField("Description :", maxLines: 5),
+                              _buildTextField("Subtitle :"),
 
-                      // --- Price and Duration Row ---
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField("Ret/Price :")),
-                          const SizedBox(width: 12),
-                          Expanded(child: _buildDropdownField("Duration :")),
-                        ],
-                      ),
-
-                      // --- Category and Subcategory Row ---
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField("Category :", initialValue: "Vehicle")),
-                          const SizedBox(width: 12),
-                          Expanded(child: _buildTextField("Subcategory :")),
-                        ],
-                      ),
-
-                      // --- Location with Change Button ---
-                      _buildActionButtonField("Location :", "Current"),
-
-                      // --- Number with Change Button ---
-                      _buildActionButtonField("Number :", "xxxxxxxxx"),
-
-                      const SizedBox(height: 25),
-
-                      // --- Submit Button ---
-                      Center(
-                        child: SizedBox(
-                          width: 210,
-                          height: 45,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF81D4FA), // Light blue from image
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              elevation: 0,
-                            ),
-                            child: const Text(
-                              "Submit",
-                              style: TextStyle(
-                                color: Color(0xFF0D3454),
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
+                              Row(
+                                children: [
+                                  Expanded(child: _buildTextField("Price :")),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildDropdownField("Duration :")),
+                                ],
                               ),
-                            ),
+
+                              Row(
+                                children: [
+                                  Expanded(child: _buildTextField("Category :", initialValue: "Vehicle")),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildTextField("Subcategory :")),
+                                ],
+                              ),
+
+                              _buildActionButtonField("Location :", "Current"),
+                              _buildActionButtonField("Number :", "xxxxxxxxx"),
+
+                              // const SizedBox(height: 5),
+
+                              Center(
+                                child: SizedBox(
+                                  width: 210,
+                                  height: 45,
+                                  child: ElevatedButton(
+                                    onPressed: () {},
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF81D4FA),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                      elevation: 0,
+                                    ),
+                                    child: const Text(
+                                      "Submit",
+                                      style: TextStyle(
+                                        color: Color(0xFF0D3454),
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 40), // Bottom breathing room
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 120), // Padding for the Navbar
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -157,19 +230,7 @@ class _RentPageState extends State<RentPage> {
     );
   }
 
-  // --- Helper Widgets ---
-
-  Widget _buildDot(Color color, {double width = 7}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      height: 6,
-      width: width,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(10),
-      ),
-    );
-  }
+  // --- Helper Widgets from Code 2 ---
 
   Widget _buildTextField(String label, {int maxLines = 1, String? initialValue}) {
     return Padding(
@@ -254,9 +315,9 @@ class _RentPageState extends State<RentPage> {
         color: const Color(0xFF00B0FF),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Text("Add Image ", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
           Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: 18),
         ],
