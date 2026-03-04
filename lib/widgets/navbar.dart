@@ -1,14 +1,21 @@
-// ignore_for_file: deprecated_member_use
-
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:flutter/services.dart';
 
+<<<<<<< HEAD
 import 'package:rentals/views/profile/acc_page.dart';
 import 'package:rentals/views/chat/chat_page.dart';
 import 'package:rentals/home_PAGE.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/rent/rent_page.dart';
+=======
+// --- FIXED IMPORTS BASED ON YOUR FOLDER SCREENSHOT ---
+import 'package:rentals/views/home/home_page.dart';
+import 'package:rentals/views/chat/chat_page.dart';
+import 'package:rentals/views/rent/rent_page.dart'; // Folder is 'rent'
+import 'package:rentals/views/my_rentals/myrent_page.dart'; // Folder is 'my_rentals'
+import 'package:rentals/views/profile/acc_page.dart';
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -21,6 +28,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   int selectIndex = 0;
   bool isMenuOpen = false;
   late AnimationController _animationController;
+<<<<<<< HEAD
+=======
+
+  double wheelRotation = 0.0;
+  double targetRotation = 0.0;
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
 
   double wheelRotation = 0.0;
   double targetRotation = 0.0;
@@ -33,6 +46,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/vehicle_icon.png', 'label': 'Vehicle'},
     {'icon': 'assets/icons/house_icon.png', 'label': 'House'},
     {'icon': 'assets/icons/electronic_icon.png', 'label': 'Electronics'},
+<<<<<<< HEAD
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
 
     // Wheel 2 (Indices 6-11)
@@ -50,10 +64,13 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/game_icon.png', 'label': 'Game'},
     {'icon': 'assets/icons/other_icon.png', 'label': 'Other'},
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
+=======
+    {'icon': 'assets/icons/fashion_icon.png', 'label': 'Other'},
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
   ];
 
   final List<Widget> pages = [
-    HomePage(),
+    const HomePage(), // Added const to match your other pages if applicable, remove if it throws error
     const ChatPage(),
     const RentPage(),
     const MyrentPage(),
@@ -82,9 +99,15 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   void _snapToClosest() {
+<<<<<<< HEAD
     // Snap based on 6 visual segments
     double segmentAngle = (2 * math.pi) / 6;
     double newTarget = (wheelRotation / segmentAngle).round() * segmentAngle;
+=======
+    double segmentAngle = (2 * math.pi) / menuItems.length;
+    double currentRotation = wheelRotation;
+    double newTarget = (currentRotation / segmentAngle).round() * segmentAngle;
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
 
     setState(() {
       targetRotation = newTarget;
@@ -108,7 +131,8 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
       body: Stack(
         children: [
           IndexedStack(index: selectIndex, children: pages),
-          if (isMenuOpen || _animationController.value > 0) _buildSmallFanMenu(),
+          if (isMenuOpen || _animationController.value > 0)
+            _buildSmallFanMenu(),
         ],
       ),
       bottomNavigationBar: Stack(
@@ -119,6 +143,10 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
             size: Size(MediaQuery.of(context).size.width, 92),
             painter: WaveBarPainter(),
           ),
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
           Container(
             height: 72,
             padding: const EdgeInsets.only(bottom: 26),
@@ -163,12 +191,21 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                       end: Alignment.bottomCenter,
                     ),
                   ),
+<<<<<<< HEAD
                   child: Icon(isMenuOpen ? Icons.close : Icons.add,
                       color: Colors.white, size: 28),
+=======
+                  child: Icon(
+                    isMenuOpen ? Icons.close : Icons.add,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
                 ),
               ),
             ),
           ),
+<<<<<<< HEAD
           const Positioned(
             bottom: 26,
             child: Text("Rent",
@@ -177,6 +214,20 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                     fontSize: 11,
                     fontWeight: FontWeight.w500)),
           )
+=======
+
+          const Positioned(
+            bottom: 26,
+            child: Text(
+              "Rent",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
         ],
       ),
     );
@@ -202,10 +253,20 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
             color: isActive ? Colors.blueAccent : Colors.white,
           ),
           const SizedBox(height: 2),
+<<<<<<< HEAD
           Text(label,
               style: TextStyle(
                   color: isActive ? Colors.blueAccent : Colors.white,
                   fontSize: 11)),
+=======
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? Colors.blueAccent : Colors.white,
+              fontSize: 11,
+            ),
+          ),
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
         ],
       ),
     );
@@ -237,7 +298,13 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                 child: Center(
                   child: TweenAnimationBuilder<double>(
                     tween: Tween<double>(
+<<<<<<< HEAD
                         begin: wheelRotation, end: targetRotation),
+=======
+                      begin: wheelRotation,
+                      end: targetRotation,
+                    ),
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     builder: (context, value, child) {
@@ -270,6 +337,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                       ),
                                     ),
                                   ),
+<<<<<<< HEAD
                                   // Generates 6 icons, mapped to the correct set
                                   ...List.generate(6, (i) {
                                     // Map current set (0-2) to the correct list index (0-17)
@@ -283,6 +351,22 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                     // Keep same hiding logic: only top 3 items visible
                                     if (norm > math.pi * 0.9 && norm < math.pi * 1.1) return const SizedBox.shrink();
                                     if (norm > math.pi && norm < 2 * math.pi) return const SizedBox.shrink();
+=======
+                                  ...List.generate(menuItems.length, (index) {
+                                    double segmentAngle =
+                                        (2 * math.pi / menuItems.length);
+                                    double angle = segmentAngle * index + value;
+
+                                    double norm =
+                                        (angle + math.pi / 2) % (2 * math.pi);
+                                    if (norm < 0) norm += 2 * math.pi;
+
+                                    if (norm > math.pi * 0.9 &&
+                                        norm < math.pi * 1.1)
+                                      return const SizedBox.shrink();
+                                    if (norm > math.pi && norm < 2 * math.pi)
+                                      return const SizedBox.shrink();
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
 
                                     bool isActive = actualIndex == activeIndex;
 
@@ -292,6 +376,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                         offset: Offset(0, isActive ? -75 : -70),
                                         child: Transform.rotate(
                                           angle: -angle,
+<<<<<<< HEAD
                                           child: GestureDetector(
                                             onTap: () {
                                               RentPage.categoryController.text = menuItems[actualIndex]['label'];
@@ -307,6 +392,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                               menuItems[actualIndex]['label'],
                                               isActive,
                                             ),
+=======
+                                          child: _fanOption(
+                                            menuItems[index]['icon'],
+                                            menuItems[index]['label'],
+                                            isActive,
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
                                           ),
                                         ),
                                       ),
@@ -336,11 +427,22 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
         if (isActive)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
+<<<<<<< HEAD
             child: Text(label,
                 style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 13)),
+=======
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
           ),
         Image.asset(
           assetPath,
@@ -365,10 +467,21 @@ class WaveBarPainter extends CustomPainter {
     path.moveTo(0, 0);
     path.lineTo(center - 55, 0);
     path.quadraticBezierTo(center - 45, 0, center - 40, 12);
+<<<<<<< HEAD
     path.arcToPoint(Offset(center + 40, 12),
         radius: const Radius.circular(42), clockwise: false);
     path.quadraticBezierTo(center + 45, 0, center + 55, 0);
     path.lineTo(size.width, 0);
+=======
+    path.arcToPoint(
+      Offset(center + 40, 12),
+      radius: const Radius.circular(42),
+      clockwise: false,
+    );
+    path.quadraticBezierTo(center + 45, 0, center + 55, 0);
+    path.lineTo(size.width, 0);
+
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
     path.lineTo(size.width, size.height);
     path.lineTo(0, size.height);
     path.close();
@@ -388,6 +501,10 @@ class FanWheelPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
     final sweepAngle = (2 * math.pi) / itemCount;
     const double spacing = 0.04;
 
@@ -395,6 +512,10 @@ class FanWheelPainter extends CustomPainter {
       final bool isActive = i == activeIndex;
       final paint = Paint()
         ..color = isActive ? const Color(0xFF113F67) : const Color(0xFF00C2FF);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
       double startAngle =
           (sweepAngle * i) - (math.pi / 2) - (sweepAngle / 2) + (spacing / 2);
       double drawSweep = sweepAngle - spacing;
@@ -405,9 +526,17 @@ class FanWheelPainter extends CustomPainter {
           ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 8.0;
+<<<<<<< HEAD
         canvas.drawArc(rect, startAngle, drawSweep, true, borderPaint);
       }
     }
+=======
+
+        canvas.drawArc(rect, startAngle, drawSweep, true, borderPaint);
+      }
+    }
+
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
     canvas.drawCircle(center, radius * 0.35, Paint()..color = Colors.white);
   }
 

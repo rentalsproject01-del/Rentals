@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:rentals/product_page.dart';
 import 'package:rentals/like_page.dart';
+=======
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -10,6 +13,7 @@ class AccPage extends StatefulWidget {
 }
 
 class _AccPageState extends State<AccPage> {
+<<<<<<< HEAD
   bool isHostView = true;
 
   final List<Map<String, String>> hostList = [
@@ -234,5 +238,10 @@ class _AccPageState extends State<AccPage> {
         ],
       ),
     );
+=======
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold();
+>>>>>>> 9694ae34c0e5978203bbecb866da76c337afdcd6
   }
 }

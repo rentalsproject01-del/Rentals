@@ -4,21 +4,21 @@ import 'package:flutter/material.dart';
 class RentItem {
   final String hostName, itemName, status, date, image;
   RentItem({
-    required this.hostName, 
-    required this.itemName, 
-    required this.status, 
-    required this.date, 
-    required this.image
+    required this.hostName,
+    required this.itemName,
+    required this.status,
+    required this.date,
+    required this.image,
   });
 }
 
 class HostItem {
   final String name, date, profileImg, itemImg;
   HostItem({
-    required this.name, 
-    required this.date, 
-    required this.profileImg, 
-    required this.itemImg
+    required this.name,
+    required this.date,
+    required this.profileImg,
+    required this.itemImg,
   });
 }
 
@@ -39,19 +39,55 @@ class _MyrentPageState extends State<MyrentPage> {
 
   // Lists using the models defined above
   final List<RentItem> rentList = [
-    RentItem(hostName: "Aarti mahajan", itemName: "The Rose Gold Jewellery", status: "Your request has been accepted", date: "Thursday, 2nd Jan", image: "assets/images/jwellery.png"),
-    RentItem(hostName: "Palash inamdar", itemName: "Zara Tied Bicycle", status: "Your request has been accepted", date: "Friday, 11th Jan", image: "assets/images/cycle_img.png"),
-    RentItem(hostName: "John Doe", itemName: "CRYPTO Running shoes", status: "Your request has been accepted", date: "Sunday, 15th Jan", image: "assets/images/sneaker_img.png"),
-    RentItem(hostName: "Jasmin Agrwal", itemName: "Party wear women Dress", status: "Your request has been accepted", date: "Sunday, 15th Jan", image: "assets/images/dress_img.png"),
+    RentItem(
+        hostName: "Aarti mahajan",
+        itemName: "The Rose Gold Jewellery",
+        status: "Your request has been accepted",
+        date: "Thursday, 2nd Jan",
+        image: "assets/images/jwellery.png"),
+    RentItem(
+        hostName: "Palash inamdar",
+        itemName: "Zara Tied Bicycle",
+        status: "Your request has been accepted",
+        date: "Friday, 11th Jan",
+        image: "assets/images/cycle_img.png"),
+    RentItem(
+        hostName: "John Doe",
+        itemName: "CRYPTO Running shoes",
+        status: "Your request has been accepted",
+        date: "Sunday, 15th Jan",
+        image: "assets/images/sneaker_img.png"),
+    RentItem(
+        hostName: "Jasmin Agrwal",
+        itemName: "Party wear women Dress",
+        status: "Your request has been accepted",
+        date: "Sunday, 15th Jan",
+        image: "assets/images/dress_img.png"),
   ];
 
   final List<HostItem> hostList = [
-    HostItem(name: "Aarti mahajan", date: "Thursday, 2nd Jan", profileImg: "assets/images/profile_img2.png", itemImg: "assets/images/book_img2.png"),
-    HostItem(name: "Rushi Sing", date: "Friday, 11th Jan", profileImg: "assets/images/profile_img3.png", itemImg: "assets/images/bike_img.png"),
-    HostItem(name: "Shreya joshi", date: "Sunday, 18th Jan", profileImg: "assets/images/profile_img4.png", itemImg: "assets/images/jacket_img.png"),
-    HostItem(name: "Pranav patil", date: "Thursday, 1 Feb", profileImg: "assets/images/profile_img5.png", itemImg: "assets/images/camera_img.png"),
+    HostItem(
+        name: "Aarti mahajan",
+        date: "Thursday, 2nd Jan",
+        profileImg: "assets/images/profile_img2.png",
+        itemImg: "assets/images/book_img2.png"),
+    HostItem(
+        name: "Rushi Sing",
+        date: "Friday, 11th Jan",
+        profileImg: "assets/images/profile_img3.png",
+        itemImg: "assets/images/bike_img.png"),
+    HostItem(
+        name: "Shreya joshi",
+        date: "Sunday, 18th Jan",
+        profileImg: "assets/images/profile_img4.png",
+        itemImg: "assets/images/jacket_img.png"),
+    HostItem(
+        name: "Pranav patil",
+        date: "Thursday, 1 Feb",
+        profileImg: "assets/images/profile_img5.png",
+        itemImg: "assets/images/camera_img.png"),
   ];
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,7 +99,11 @@ class _MyrentPageState extends State<MyrentPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 45),
             child: Row(
               children: [
-                Image.asset('assets/icons/arrow_icon.png', height: 24, width: 24,),
+                Image.asset(
+                  'assets/icons/arrow_icon.png',
+                  height: 24,
+                  width: 24,
+                ),
                 const SizedBox(width: 7),
                 const Text(
                   'My Rent',
@@ -121,7 +161,10 @@ class _MyrentPageState extends State<MyrentPage> {
                   color: isHostView ? primaryBlue : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('Host', style: TextStyle(color: isHostView ? Colors.white : primaryBlue, fontWeight: FontWeight.bold)),
+                child: Text('Host',
+                    style: TextStyle(
+                        color: isHostView ? Colors.white : primaryBlue,
+                        fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -134,7 +177,10 @@ class _MyrentPageState extends State<MyrentPage> {
                   color: !isHostView ? primaryBlue : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('Rent', style: TextStyle(color: !isHostView ? Colors.white : primaryBlue, fontWeight: FontWeight.bold)),
+                child: Text('Rent',
+                    style: TextStyle(
+                        color: !isHostView ? Colors.white : primaryBlue,
+                        fontWeight: FontWeight.bold)),
               ),
             ),
           ),
@@ -156,8 +202,16 @@ class _MyrentPageState extends State<MyrentPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                child: Image.asset(item.image, width: 150, height: 100, fit: BoxFit.cover, 
-                  errorBuilder: (context, error, stackTrace) => Container(width: 150, height: 100, color: Colors.grey[300], child: const Icon(Icons.image)),
+                child: Image.asset(
+                  item.image,
+                  width: 150,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                      width: 150,
+                      height: 100,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image)),
                 ),
               ),
               const SizedBox(width: 15),
@@ -165,12 +219,20 @@ class _MyrentPageState extends State<MyrentPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.hostName, style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(item.itemName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                    Text(item.hostName,
+                        style: TextStyle(
+                            color: primaryBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
+                    Text(item.itemName,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 14)),
                     const SizedBox(height: 10),
-                    Text(item.status, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(item.status,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 2),
-                    Text(item.date, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(item.date,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
@@ -192,35 +254,49 @@ class _MyrentPageState extends State<MyrentPage> {
           child: Row(
             children: [
               CircleAvatar(
-                radius: 38, 
-                backgroundColor: Colors.grey[200],
-                backgroundImage: AssetImage(item.profileImg)
-              ),
+                  radius: 38,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: AssetImage(item.profileImg)),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name, style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(item.name,
+                        style: TextStyle(
+                            color: primaryBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15)),
                     const SizedBox(height: 5),
                     ElevatedButton(
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         backgroundColor: secondaryBlue,
                         minimumSize: const Size(100, 25),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5)),
                         padding: EdgeInsets.zero,
                       ),
-                      child: const Text('View Profile', style: TextStyle(color: Colors.white, fontSize: 11)),
+                      child: const Text('View Profile',
+                          style: TextStyle(color: Colors.white, fontSize: 11)),
                     ),
-                    Text(item.date, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                    Text(item.date,
+                        style: const TextStyle(color: Colors.grey, fontSize: 10)),
                   ],
                 ),
               ),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(item.itemImg, width: 110, height: 70, fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(width: 110, height: 70, color: Colors.grey[300], child: const Icon(Icons.shopping_bag)),
+                child: Image.asset(
+                  item.itemImg,
+                  width: 110,
+                  height: 70,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                      width: 110,
+                      height: 70,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.shopping_bag)),
                 ),
               ),
             ],
@@ -228,5 +304,5 @@ class _MyrentPageState extends State<MyrentPage> {
         );
       },
     );
-  } 
+  }
 }
