@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-// import 'package:rentals/home_page.dart';
-import 'package:rentals/navbar.dart';
+// import 'package:rentals/like_page.dart';
+import 'package:rentals/widgets/navbar.dart';
+// import 'package:rentals/product_page.dart';
 
 void main() {
   runApp(const MyApp());

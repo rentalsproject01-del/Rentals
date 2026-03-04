@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rentals/product_page.dart';
 import 'dart:async';
 
 // 1. DATA MODEL FOR DYNAMIC LIST
@@ -27,7 +28,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // --- TYPING ANIMATION LOGIC ---
-  final List<String> _searchHints = ["Camera", "Speaker", "Book", "Jacket", "Sneaker"];
+  final List<String> _searchHints = ["Camera", "Speaker", "Book", "Jacket", "Sneaker", "Necklace", "PS5", "Subscription"];
   int _currentHintIndex = 0;
   String _displayedText = "";
   int _charIndex = 0;
@@ -172,38 +173,38 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 2),
                     _buildSectionTitle("Your Rent.., Your Way..."),
                     SizedBox(
-                      height: 290, // Adjusted for indicators
+                      height: 290, 
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
                           _buildNearMeBanner(),
                           _buildPromoBanner(),
-                          _buildPageIndicator(), // The 3 dots at the bottom
+                          _buildPageIndicator(), 
                         ],
                       ),
                     ),
                     _buildSectionTitle("Top Deals"),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      itemCount: topDeals.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.9,
-                        mainAxisSpacing: 15,
-                        crossAxisSpacing: 15,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        itemCount: topDeals.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.9,
+                          mainAxisSpacing: 15,
+                          crossAxisSpacing: 15,
+                        ),
+                        itemBuilder: (context, index) {
+                          return _buildDealCard(topDeals[index]);
+                        },
                       ),
-                      itemBuilder: (context, index) {
-                        return _buildDealCard(topDeals[index]);
-                      },
                     ),
-                    ),
-                    SizedBox(height: 110),
+                    const SizedBox(height: 110),
                   ],
                 ),
               ),
@@ -213,8 +214,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // --- UI HELPER METHODS ---
 
   Widget _buildTopHeader() {
     return Row(
@@ -227,13 +226,13 @@ class _HomePageState extends State<HomePage> {
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Rentals", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                Text("Just Rent", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                Text("Rentals", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w500)),
+                Text("Just Rent", style: TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ],
         ),
-        Image.asset("assets/icons/notification_icon.png", height: 25, width: 25),
+        Image.asset("assets/icons/notification_icon.png", height: 24, width: 24),
       ],
     );
   }
@@ -280,11 +279,18 @@ class _HomePageState extends State<HomePage> {
         scrollDirection: Axis.horizontal,
         children: [
           _categoryItem("Fashion", "assets/icons/fashion_icon.png"),
+          _categoryItem("Jwellery", "assets/icons/jwellery_icon.png"),
           _categoryItem("Vehicle", "assets/icons/vehicle_icon.png"),
-          _categoryItem("Books", "assets/icons/books_icon.png"),
-          _categoryItem("Electronics", "assets/icons/electronic_icon.png"),
           _categoryItem("House", "assets/icons/house_icon.png"),
-          _categoryItem("More", "assets/icons/house_icon.png"),
+          _categoryItem("Electronics", "assets/icons/electronic_icon.png"),
+          _categoryItem("Books", "assets/icons/books_icon.png"),
+          _categoryItem("Game", "assets/icons/game_icon.png"),
+          _categoryItem("GYM", "assets/icons/gym_icon.png"),
+          _categoryItem("Travel", "assets/icons/travel_icon.png"),
+          _categoryItem("Decoration", "assets/icons/decore_icon.png"),
+          _categoryItem("Furniture", "assets/icons/furniture_icon.png"),
+          _categoryItem("Subscription", "assets/icons/subscription_icon.png"),
+          _categoryItem("Other", "assets/icons/other_icon.png"),
         ],
       ),
     );
@@ -416,8 +422,8 @@ class _HomePageState extends State<HomePage> {
           _offerImages.length,
           (index) => Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: index == _currentOfferIndex ? 20 : 6, // Design: Active is longer
-            height: 5, // Design: Line shape
+            width: index == _currentOfferIndex ? 20 : 6, 
+            height: 5, 
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
               color: index == _currentOfferIndex 
@@ -494,15 +500,25 @@ class _HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(deal.price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF113F67))),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      width: 55,
-                      height: 27,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF113F67)),
-                        borderRadius: BorderRadius.circular(8),
+                    
+                    // --- CHANGED: NAVIGATION ADDED HERE ---
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ProductPage()),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        width: 55,
+                        height: 27,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF113F67)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Image.asset("assets/icons/rent_icon.png", ),
                       ),
-                      child: Image.asset("assets/icons/rent_icon.png", color: const Color(0xFF113F67)),
                     )
                   ],
                 )
@@ -516,7 +532,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 22, bottom: 7, top: 7),
+      padding: const EdgeInsets.only(left: 22, bottom: 7, top: 10),
       child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF113F67))),
     );
   }
