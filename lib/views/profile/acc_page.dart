@@ -2,10 +2,10 @@
 
 import 'package:flutter/material.dart';
 
-// --- FIXED IMPORTS FOR NEW FOLDER STRUCTURE ---
-import 'package:rentals/views/product/product_page.dart';
-import 'package:rentals/views/profile/like_page.dart';
-import 'package:rentals/views/profile/edit_profile.dart'; // Added Edit Profile import
+// --- COMPLETELY FIXED IMPORTS (Relative Paths) ---
+import '../product/product_page.dart';
+import 'like_page.dart';
+import 'edit_profile.dart';
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -170,7 +170,6 @@ class _AccPageState extends State<AccPage> {
                 radius: 50,
                 backgroundImage: AssetImage('assets/images/profile_img.png'),
               ),
-              // --- ADDED GESTURE DETECTOR FOR EDIT PROFILE ---
               Positioned(
                 bottom: 0,
                 right: 0,
