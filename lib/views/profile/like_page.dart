@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rentals/product_page.dart';
+import 'package:rentals/views/product/product_page.dart';
 
 class LikePage extends StatelessWidget {
   const LikePage({super.key});

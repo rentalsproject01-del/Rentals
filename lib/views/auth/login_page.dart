@@ -49,11 +49,17 @@ class _LoginPageState extends State<LoginPage> {
       await googleSignIn.initialize();
 
       // 2. Trigger the authentication flow
-      // Note: authenticate() throws an exception if the user cancels the popup
-      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
+      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
 
-      // 3. Obtain the auth details (This is synchronous in v7, no 'await' needed)
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      if (googleUser == null) {
+        // The user canceled the sign-in
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      // 3. Obtain the auth details
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // 4. Create a new credential using ONLY the idToken
       final credential = GoogleAuthProvider.credential(
@@ -64,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In Failed or Cancelled.")),
+        const SnackBar(content: Text("Google Sign-In Failed or Cancelled.")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -205,8 +211,8 @@ class _LoginPageState extends State<LoginPage> {
                       height: 55,
                       child: OutlinedButton.icon(
                         onPressed: _isLoading ? null : _signInWithGoogle,
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                        icon: Image.asset(
+                          'assets/icons/google.png',
                           height: 24,
                         ),
                         label: const Text(
