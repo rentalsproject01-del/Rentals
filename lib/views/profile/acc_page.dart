@@ -2,16 +2,10 @@
 
 import 'package:flutter/material.dart';
 
-<<<<<<< HEAD
-// --- FIXED IMPORTS ---
-import 'package:rentals/views/product/product_page.dart';
-import 'package:rentals/views/profile/like_page.dart';
-=======
 // --- COMPLETELY FIXED IMPORTS (Relative Paths) ---
 import '../product/product_page.dart';
 import 'like_page.dart';
 import 'edit_profile.dart';
->>>>>>> de067d1250946d4c0f127729dc7608852870441a
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -122,16 +116,13 @@ class _AccPageState extends State<AccPage> {
     double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
-<<<<<<< HEAD
+      // --- KEPT YOUR FRIEND's PADDING FIX HERE ---
       padding: EdgeInsets.fromLTRB(
         20,
         topPadding + 10,
         20,
         25,
       ), // 15 is the only gap below CIBIL
-=======
-      padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 15),
->>>>>>> de067d1250946d4c0f127729dc7608852870441a
       child: Column(
         children: [
           Row(
