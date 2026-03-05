@@ -12,7 +12,12 @@
           "package_name": "com.example.rentals"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBdUvkEgiR5fqh2I-o6YAqLf0CnwdXCyns"
@@ -20,7 +25,63 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "413426387482-dc0f2ot0jcu2pl48r6oq0jidrjv9vbgg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.rentals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:413426387482:android:666803f08eacd189295fa3",
+        "android_client_info": {
+          "package_name": "com.shrikar.rentals"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "413426387482-i4l4nqph54kd6t9jnara0df8roht92ft.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shrikar.rentals",
+            "certificate_hash": "63cae0cd4292da9f4ea3a34f003678a25cd0e072"
+          }
+        },
+        {
+          "client_id": "413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdUvkEgiR5fqh2I-o6YAqLf0CnwdXCyns"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "413426387482-dc0f2ot0jcu2pl48r6oq0jidrjv9vbgg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.rentals"
+              }
+            }
+          ]
         }
       }
     }
