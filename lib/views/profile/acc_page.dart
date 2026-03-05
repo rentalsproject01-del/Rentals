@@ -2,9 +2,10 @@
 
 import 'package:flutter/material.dart';
 
-// --- FIXED IMPORTS ---
-import 'package:rentals/product_page.dart';
-import 'package:rentals/like_page.dart';
+// --- FIXED IMPORTS FOR NEW FOLDER STRUCTURE ---
+import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/profile/like_page.dart';
+import 'package:rentals/views/profile/edit_profile.dart'; // Added Edit Profile import
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -70,9 +71,7 @@ class _AccPageState extends State<AccPage> {
       backgroundColor: const Color(0xFF113F67),
       body: Column(
         children: [
-          _buildProfileHeader(
-            context,
-          ), // Pass context to handle status bar height
+          _buildProfileHeader(context),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -103,7 +102,7 @@ class _AccPageState extends State<AccPage> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 85), // Space for your Bottom NavBar
+                  const SizedBox(height: 85),
                 ],
               ),
             ),
@@ -114,16 +113,10 @@ class _AccPageState extends State<AccPage> {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
-    // This replaces SafeArea to eliminate hidden bottom padding
     double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        topPadding + 10,
-        20,
-        15,
-      ), // 15 is the only gap below CIBIL
+      padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 15),
       child: Column(
         children: [
           Row(
@@ -146,7 +139,6 @@ class _AccPageState extends State<AccPage> {
               Row(
                 children: [
                   GestureDetector(
-                    // Wrap the like icon with GestureDetector
                     onTap: () {
                       Navigator.push(
                         context,
@@ -178,19 +170,30 @@ class _AccPageState extends State<AccPage> {
                 radius: 50,
                 backgroundImage: AssetImage('assets/images/profile_img.png'),
               ),
+              // --- ADDED GESTURE DETECTOR FOR EDIT PROFILE ---
               Positioned(
                 bottom: 0,
                 right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF16BCE6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Image.asset(
-                    'assets/icons/edit_icon.png',
-                    height: 12,
-                    width: 12,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfile(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF16BCE6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Image.asset(
+                      'assets/icons/edit_icon.png',
+                      height: 12,
+                      width: 12,
+                    ),
                   ),
                 ),
               ),
@@ -213,7 +216,6 @@ class _AccPageState extends State<AccPage> {
             '70 % CIBIL Score',
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
-          // No SizedBox here ensures the Container ends immediately
         ],
       ),
     );

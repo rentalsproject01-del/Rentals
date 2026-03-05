@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rentals/product_page.dart';
+import 'package:rentals/views/product/product_page.dart';
 import 'dart:async';
 
 // 1. DATA MODEL FOR DYNAMIC LIST

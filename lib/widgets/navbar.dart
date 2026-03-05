@@ -24,25 +24,19 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   double wheelRotation = 0.0;
   double targetRotation = 0.0;
 
-  // 18 Items split into three sets of 6
   final List<Map<String, dynamic>> menuItems = [
-    // Wheel 1 (Indices 0-5)
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
     {'icon': 'assets/icons/jwellery_icon.png', 'label': 'Jwellery'},
     {'icon': 'assets/icons/vehicle_icon.png', 'label': 'Vehicle'},
     {'icon': 'assets/icons/house_icon.png', 'label': 'House'},
     {'icon': 'assets/icons/electronic_icon.png', 'label': 'Electronics'},
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
-
-    // Wheel 2 (Indices 6-11)
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
     {'icon': 'assets/icons/game_icon.png', 'label': 'Game'},
     {'icon': 'assets/icons/gym_icon.png', 'label': 'GYM'},
     {'icon': 'assets/icons/travel_icon.png', 'label': 'Travel'},
     {'icon': 'assets/icons/decore_icon.png', 'label': 'Decore'},
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
-
-    // Wheel 3 (Indices 12-17)
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
     {'icon': 'assets/icons/furniture_icon.png', 'label': 'Furniture'},
     {'icon': 'assets/icons/subscription_icon.png', 'label': 'Subscription'},
@@ -51,12 +45,13 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
   ];
 
+  // --- REMOVED CONST FROM ACCPAGE HERE ---
   final List<Widget> pages = [
     const HomePage(),
     const ChatPage(),
     const RentPage(),
     const MyrentPage(),
-    const AccPage(),
+    AccPage(),
   ];
 
   @override
@@ -81,7 +76,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   void _snapToClosest() {
-    // Snap based on 6 visual segments
     double segmentAngle = (2 * math.pi) / 6;
     double newTarget = (wheelRotation / segmentAngle).round() * segmentAngle;
 
@@ -92,7 +86,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     HapticFeedback.mediumImpact();
   }
 
-  // FIX: Index calculated against 18 total items
   int _getActiveIndex(double rotation) {
     double segmentAngle = (2 * math.pi) / 6;
     int index = ((-rotation) / segmentAngle).round() % 18;
@@ -226,8 +219,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
       animation: _animationController,
       builder: (context, child) {
         int activeIndex = _getActiveIndex(targetRotation);
-
-        // Determine which set of 6 items to show (0, 1, or 2)
         int currentSet = activeIndex ~/ 6;
 
         return Stack(
@@ -270,7 +261,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  // Painter always draws 6 segments visually
                                   Transform.rotate(
                                     angle: value,
                                     child: CustomPaint(
@@ -281,9 +271,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                       ),
                                     ),
                                   ),
-                                  // Generates 6 icons, mapped to the correct set
                                   ...List.generate(6, (i) {
-                                    // Map current set (0-2) to the correct list index (0-17)
                                     int actualIndex = (currentSet * 6) + i;
                                     double segmentAngle = (2 * math.pi / 6);
                                     double angle = segmentAngle * i + value;
@@ -292,7 +280,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                         (angle + math.pi / 2) % (2 * math.pi);
                                     if (norm < 0) norm += 2 * math.pi;
 
-                                    // Keep same hiding logic: only top 3 items visible
                                     if (norm > math.pi * 0.9 &&
                                         norm < math.pi * 1.1)
                                       return const SizedBox.shrink();
