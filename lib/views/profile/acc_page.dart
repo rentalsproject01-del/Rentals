@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 
 // --- FIXED IMPORTS ---
-import 'package:rentals/product_page.dart';
-import 'package:rentals/like_page.dart';
+import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/profile/like_page.dart';
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
