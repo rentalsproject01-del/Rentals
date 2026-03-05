@@ -122,7 +122,7 @@ class _AccPageState extends State<AccPage> {
         20,
         topPadding + 10,
         20,
-        15,
+        25,
       ), // 15 is the only gap below CIBIL
       child: Column(
         children: [

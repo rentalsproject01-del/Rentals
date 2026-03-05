@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // Required for the blur effect
 
-// --- 1. DATA MODELS (Add these to fix the "Undefined Class" errors) ---
+// --- 1. DATA MODELS ---
 class RentItem {
   final String hostName, itemName, status, date, image;
   RentItem({
@@ -31,13 +32,12 @@ class MyrentPage extends StatefulWidget {
 }
 
 class _MyrentPageState extends State<MyrentPage> {
-  bool isHostView = false; // Logic to toggle views
+  bool isHostView = false; 
 
   final Color primaryBlue = const Color(0xFF113F67);
   final Color secondaryBlue = const Color(0xFF16BCE6);
   final Color lightGrey = const Color(0xFFE9E4E4);
 
-  // Lists using the models defined above
   final List<RentItem> rentList = [
     RentItem(
         hostName: "Aarti mahajan",
@@ -88,15 +88,124 @@ class _MyrentPageState extends State<MyrentPage> {
         itemImg: "assets/images/camera_img.png"),
   ];
 
+  // --- NEW FEATURE: PROFILE CARD DIALOG ---
+  void _showProfileCard(BuildContext context, HostItem item) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.2), // Dim background slightly
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), // Animation Blur Effect
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Container(
+              height: 420,
+              decoration: BoxDecoration(
+                color: const Color(0xFF81A9CC), // Profile card blue color
+                borderRadius: BorderRadius.circular(35),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Profile Avatar with Logo
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 65,
+                        backgroundColor: Colors.white24,
+                        child: CircleAvatar(
+                          radius: 62,
+                          backgroundImage: AssetImage(item.profileImg),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 0, right: 0),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            // color: secondaryBlue,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Image.asset('assets/images/rentals_rlogo.png', height: 30),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(item.name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                  const Text("aarti_mahajan@gmail.com",
+                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  const Text("70% CIBIL Score",
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14)),
+                  const SizedBox(height: 20),
+                  
+                  // View Account Button
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16BCE6),
+                      minimumSize: const Size(165, 35),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25)),
+                    ),
+                    child: const Text("View Account",
+                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Bottom Icons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildSocialIcon('assets/icons/map_icon2.png'),
+                      const SizedBox(width: 15),
+                      _buildSocialIcon('assets/icons/chat_icon2.png'),
+                      const SizedBox(width: 15),
+                      _buildSocialIcon('assets/icons/call_icon.png'),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSocialIcon(String iconPath) {
+    return Container(
+      height: 45,
+      width: 45,
+      decoration: const BoxDecoration(
+        color: Color(0xFF16BCE6),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Image.asset(iconPath, height: 20),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: primaryBlue,
       body: Column(
         children: [
-          // Header Section
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 45),
+            padding: const EdgeInsets.only(left: 20, bottom: 25, top: 55),
             child: Row(
               children: [
                 Image.asset(
@@ -112,8 +221,6 @@ class _MyrentPageState extends State<MyrentPage> {
               ],
             ),
           ),
-
-          // Main White Container
           Expanded(
             child: Container(
               width: double.infinity,
@@ -129,7 +236,6 @@ class _MyrentPageState extends State<MyrentPage> {
                   const SizedBox(height: 25),
                   _buildToggleSwitch(),
                   const SizedBox(height: 25),
-                  // This swaps the list based on the button clicked
                   Expanded(
                     child: isHostView ? _buildHostList() : _buildRentList(),
                   ),
@@ -269,7 +375,8 @@ class _MyrentPageState extends State<MyrentPage> {
                             fontSize: 15)),
                     const SizedBox(height: 5),
                     ElevatedButton(
-                      onPressed: () {},
+                      // --- CHANGED: Calls the profile card function ---
+                      onPressed: () => _showProfileCard(context, item),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: secondaryBlue,
                         minimumSize: const Size(100, 25),

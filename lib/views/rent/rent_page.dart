@@ -62,14 +62,14 @@ class _RentPageState extends State<RentPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 20, top: 5, bottom: 125),
+              padding: const EdgeInsets.only(left: 20, top: 25, bottom: 150),
               child: Row(
                 children: [
-                  Image.asset('assets/icons/arrow_icon.png', height: 24, width: 24,),
+                  Image.asset('assets/icons/arrow_icon.png', height: 24, width: 24, errorBuilder: (context, error, stackTrace) => const Icon(Icons.arrow_back, color: Colors.white)),
                   const SizedBox(width: 4),
                   const Text(
                     "Just Rent",
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w400),
+                    style: TextStyle(color: Colors.white, fontSize: 20),
                   ),
                 ],
               ),
@@ -108,7 +108,7 @@ class _RentPageState extends State<RentPage> {
                                       itemBuilder: (context, index) {
                                         return Container(
                                           color: Colors.grey[200],
-                                          child: Image.asset(_offerImages[index], fit: BoxFit.cover),
+                                          child: Image.asset(_offerImages[index], fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 50, color: Colors.grey)),
                                         );
                                       },
                                     ),
@@ -145,22 +145,26 @@ class _RentPageState extends State<RentPage> {
                     ),
                     Expanded(
                       child: Transform.translate(
-                        offset: const Offset(0, -60),
+                        offset: const Offset(0, -67),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildTextField("Title"),
-                              _buildTextField("Subtitle"),
-                              _buildTextField("Description", maxLines: 5),
+                              _buildTextField("Subtitle"), 
+                              _buildDescriptionField("Description"),  
                               _buildTextField("Deposite"),
+                              
                               Row(
                                 children: [
-                                  Expanded(child: _buildTextField("Price")),
-                                  const SizedBox(width: 12),
                                   Expanded(child: _buildDropdownField("Duration")),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildTextField("Price")),
                                 ],
                               ),
+                              
+                              
                               Row(
                                 children: [
                                   Expanded(child: _buildTextField("Category", controller: RentPage.categoryController)),
@@ -168,15 +172,19 @@ class _RentPageState extends State<RentPage> {
                                   Expanded(child: _buildTextField("Subcategory")),
                                 ],
                               ),
+                              
+                              const SizedBox(height: 15),
+                              
                               _buildActionButtonField("Location", "Current"),
                               _buildActionButtonField("Number", "xxxxxxxxx"),
-                              const SizedBox(height: 10),
+                              
+                              const SizedBox(height: 20),
                               Center(
                                 child: GestureDetector(
                                   onTap: () {},
                                   child: Container(
-                                    width: 203, 
-                                    height: 42, 
+                                    width: 200, 
+                                    height: 40, 
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(15),
                                       border: Border.all(color: const Color(0xFF16BCE6), width: 1.5),
@@ -219,29 +227,68 @@ class _RentPageState extends State<RentPage> {
     );
   }
 
-  // --- UPDATED HELPER WIDGETS ---
+  // --- WIDGETS ---
+
+  Widget _buildDescriptionField(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$label : ",
+            style: const TextStyle(color: Color(0xFF0D3454), fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            maxLines: 5, // Reduced maxLines for smaller size
+            style: const TextStyle(fontSize: 13, color: Colors.blueGrey, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              isDense: true, // Makes the field more compact
+              contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00B0FF), width: 0.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTextField(String label, {int maxLines = 1, String? initialValue, TextEditingController? controller}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
         initialValue: controller == null ? initialValue : null,
         maxLines: maxLines,
-        style: const TextStyle(fontSize: 14, color: Colors.black),
+        style: const TextStyle(fontSize: 13, color: Colors.blueGrey, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
-          labelText: label, // Using labelText for the floating effect
-          labelStyle: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w400, fontSize: 14),
-          floatingLabelStyle: const TextStyle(color: Color(0xFF00B0FF), fontWeight: FontWeight.bold),
-          alignLabelWithHint: true, 
-          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          isDense: true, // Reduced vertical size
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 15, right: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("$label : ", style: const TextStyle(color: Color(0xFF0D3454), fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Colors.grey, width: 1),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey, width: 0.5),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Color(0xFF00B0FF), width: 1.5),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF00B0FF), width: 0.5),
           ),
         ),
       ),
@@ -250,29 +297,32 @@ class _RentPageState extends State<RentPage> {
 
   Widget _buildDropdownField(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: DropdownButtonFormField<String>(
         value: selectedDuration,
-        style: const TextStyle(fontSize: 14, color: Colors.black),
+        style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
-          labelText: label, // Added floating label here
-          labelStyle: const TextStyle(color: Colors.black54, fontSize: 14),
-          floatingLabelStyle: const TextStyle(color: Color(0xFF00B0FF), fontWeight: FontWeight.bold),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+          isDense: true,
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 2),
+            child: Text("$label : ", style: const TextStyle(color: Color(0xFF0D3454), fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Colors.grey, width: 1),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey, width: 0.5),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
-            borderSide: const BorderSide(color: Color(0xFF00B0FF), width: 1.5),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF00B0FF), width: 0.5),
           ),
         ),
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF0D3454), size: 22),
         items: <String>['per day', 'per week', 'per month'].map((String value) {
           return DropdownMenuItem<String>(
             value: value, 
-            child: Text(value, style: const TextStyle(fontSize: 13, color: Colors.black))
+            child: Text(value, style: const TextStyle(fontSize: 13, color: Colors.blueGrey))
           );
         }).toList(),
         onChanged: (val) => setState(() => selectedDuration = val!),
@@ -282,31 +332,34 @@ class _RentPageState extends State<RentPage> {
 
   Widget _buildActionButtonField(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start, // Align with top of textfield
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(child: _buildTextField(label, initialValue: value)),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {},
-            child: Container(
-              height: 48, // Matched height of textfield
-              width: 110, 
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: const Color(0xFF16BCE6), width: 1),
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF16BCE6).withOpacity(0.5),
-                    const Color(0xFF00A2FF).withOpacity(0.5),
-                  ],
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10), // Matches TextField bottom padding
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                height: 37, // Adjusted height to match smaller textfield
+                width: 85, 
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF16BCE6), width: 1),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF16BCE6).withOpacity(0.5),
+                      const Color(0xFF00A2FF).withOpacity(0.5),
+                    ],
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Text(
-                  "Change", 
-                  style: TextStyle(color: Color(0xFF0D3454), fontWeight: FontWeight.bold, fontSize: 16),
+                child: const Center(
+                  child: Text(
+                    "Change", 
+                    style: TextStyle(color: Color(0xFF0D3454), fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
               ),
             ),
@@ -318,16 +371,16 @@ class _RentPageState extends State<RentPage> {
 
   Widget _buildAddImageButton() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF00B0FF),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text("Add Image ", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-          Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: 18),
+          const Text("Add Image ", style: TextStyle(color: Colors.white, fontSize: 12)),
+          const Icon(Icons.add, color: Colors.white, size: 16),
         ],
       ),
     );

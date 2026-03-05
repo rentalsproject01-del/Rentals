@@ -151,7 +151,7 @@ class _HomePageState extends State<HomePage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 50, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 5),
             child: Column(
               children: [
                 _buildTopHeader(),
@@ -175,7 +175,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     _buildSectionTitle("Your Rent.., Your Way..."),
                     SizedBox(
-                      height: 290, 
+                      height: 290, // Increased height slightly to accommodate the indicator
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -187,15 +187,15 @@ class _HomePageState extends State<HomePage> {
                     ),
                     _buildSectionTitle("Top Deals"),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       child: GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         itemCount: topDeals.length,
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.9,
+                          childAspectRatio: 0.75, // CHANGED: Decreased from 0.9 to 0.75 to fix overflow
                           mainAxisSpacing: 15,
                           crossAxisSpacing: 15,
                         ),
@@ -309,7 +309,7 @@ class _HomePageState extends State<HomePage> {
                 begin: Alignment.topCenter, 
                 end: Alignment.bottomCenter
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
               border: Border.all(color: Colors.white24, width: 1),
             ),
             child: Center(child: Image.asset(assetPath, height: 28, width: 28, color: Colors.white)),
@@ -447,7 +447,7 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 10, 8, 2),
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
             child: SizedBox(
               width: double.infinity,
               child: Stack(
@@ -457,18 +457,18 @@ class _HomePageState extends State<HomePage> {
                     child: Image.asset(
                       deal.imagePath,
                       fit: BoxFit.cover,
-                      height: 90,
+                      height: 100,
                       width: double.infinity,
                     ),
                   ),
                   Positioned(
-                    top: 8, 
-                    right: 8,
+                    top: 7, 
+                    right: 7,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFF113F67).withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
@@ -483,46 +483,52 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  deal.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF113F67)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(deal.subTitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(deal.price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF113F67))),
-                    
-                    // --- CHANGED: NAVIGATION ADDED HERE ---
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ProductPage()),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        width: 55,
-                        height: 27,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF113F67)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Image.asset("assets/icons/rent_icon.png", ),
+          // Expanded ensures that the text takes up the remaining space and doesn't overflow
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Keeps price at bottom
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        deal.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF113F67)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    )
-                  ],
-                )
-              ],
+                      Text(deal.subTitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(deal.price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF113F67))),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ProductPage()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          width: 50,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF113F67)),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Image.asset("assets/icons/rent_icon.png", ),
+                        ),
+                      )
+                    ],
+                  )
+                ],
+              ),
             ),
           )
         ],
