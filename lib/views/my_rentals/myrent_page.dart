@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Required for the blur effect
+import 'package:rentals/views/product/product_page.dart';
 
 // --- 1. DATA MODELS ---
+// Note: Consider moving these to lib/models/rental_models.dart in the future
 class RentItem {
   final String hostName, itemName, status, date, image;
   RentItem({
@@ -14,9 +16,10 @@ class RentItem {
 }
 
 class HostItem {
-  final String name, date, profileImg, itemImg;
+  final String name, email, date, profileImg, itemImg; // Added email field
   HostItem({
     required this.name,
+    required this.email,
     required this.date,
     required this.profileImg,
     required this.itemImg,
@@ -32,7 +35,7 @@ class MyrentPage extends StatefulWidget {
 }
 
 class _MyrentPageState extends State<MyrentPage> {
-  bool isHostView = false; 
+  bool isHostView = false;
 
   final Color primaryBlue = const Color(0xFF113F67);
   final Color secondaryBlue = const Color(0xFF16BCE6);
@@ -40,52 +43,64 @@ class _MyrentPageState extends State<MyrentPage> {
 
   final List<RentItem> rentList = [
     RentItem(
-        hostName: "Aarti mahajan",
-        itemName: "The Rose Gold Jewellery",
-        status: "Your request has been accepted",
-        date: "Thursday, 2nd Jan",
-        image: "assets/images/jwellery.png"),
+      hostName: "Aarti mahajan",
+      itemName: "The Rose Gold Jewelry",
+      status: "Your request has been accepted",
+      date: "Thursday, 2nd Jan",
+      image: "assets/images/jwellery.png",
+    ),
     RentItem(
-        hostName: "Palash inamdar",
-        itemName: "Zara Tied Bicycle",
-        status: "Your request has been accepted",
-        date: "Friday, 11th Jan",
-        image: "assets/images/cycle_img.png"),
+      hostName: "Palash inamdar",
+      itemName: "Zara Tied Bicycle",
+      status: "Your request has been accepted",
+      date: "Friday, 11th Jan",
+      image: "assets/images/cycle_img.png",
+    ),
     RentItem(
-        hostName: "John Doe",
-        itemName: "CRYPTO Running shoes",
-        status: "Your request has been accepted",
-        date: "Sunday, 15th Jan",
-        image: "assets/images/sneaker_img.png"),
+      hostName: "John Doe",
+      itemName: "CRYPTO Running shoes",
+      status: "Your request has been accepted",
+      date: "Sunday, 15th Jan",
+      image: "assets/images/sneaker_img.png",
+    ),
     RentItem(
-        hostName: "Jasmin Agrwal",
-        itemName: "Party wear women Dress",
-        status: "Your request has been accepted",
-        date: "Sunday, 15th Jan",
-        image: "assets/images/dress_img.png"),
+      hostName: "Jasmin Agrwal",
+      itemName: "Party wear women Dress",
+      status: "Your request has been accepted",
+      date: "Sunday, 15th Jan",
+      image: "assets/images/dress_img.png",
+    ),
   ];
 
   final List<HostItem> hostList = [
     HostItem(
-        name: "Aarti mahajan",
-        date: "Thursday, 2nd Jan",
-        profileImg: "assets/images/profile_img2.png",
-        itemImg: "assets/images/book_img2.png"),
+      name: "Aarti mahajan",
+      email: "aarti_mahajan@gmail.com",
+      date: "Thursday, 2nd Jan",
+      profileImg: "assets/images/profile_img2.png",
+      itemImg: "assets/images/book_img2.png",
+    ),
     HostItem(
-        name: "Rushi Sing",
-        date: "Friday, 11th Jan",
-        profileImg: "assets/images/profile_img3.png",
-        itemImg: "assets/images/bike_img.png"),
+      name: "Rushi Sing",
+      email: "rushi_sing@gmail.com",
+      date: "Friday, 11th Jan",
+      profileImg: "assets/images/profile_img3.png",
+      itemImg: "assets/images/bike_img.png",
+    ),
     HostItem(
-        name: "Shreya joshi",
-        date: "Sunday, 18th Jan",
-        profileImg: "assets/images/profile_img4.png",
-        itemImg: "assets/images/jacket_img.png"),
+      name: "Shreya joshi",
+      email: "shreya_joshi@gmail.com",
+      date: "Sunday, 18th Jan",
+      profileImg: "assets/images/profile_img4.png",
+      itemImg: "assets/images/jacket_img.png",
+    ),
     HostItem(
-        name: "Pranav patil",
-        date: "Thursday, 1 Feb",
-        profileImg: "assets/images/profile_img5.png",
-        itemImg: "assets/images/camera_img.png"),
+      name: "Pranav patil",
+      email: "pranav_patil@gmail.com",
+      date: "Thursday, 1 Feb",
+      profileImg: "assets/images/profile_img5.png",
+      itemImg: "assets/images/camera_img.png",
+    ),
   ];
 
   // --- NEW FEATURE: PROFILE CARD DIALOG ---
@@ -95,7 +110,10 @@ class _MyrentPageState extends State<MyrentPage> {
       barrierColor: Colors.black.withOpacity(0.2), // Dim background slightly
       builder: (context) {
         return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), // Animation Blur Effect
+          filter: ImageFilter.blur(
+            sigmaX: 5,
+            sigmaY: 5,
+          ), // Animation Blur Effect
           child: Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 40),
@@ -125,30 +143,40 @@ class _MyrentPageState extends State<MyrentPage> {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            // color: secondaryBlue,
                             borderRadius: BorderRadius.circular(5),
                           ),
-                          child: Image.asset('assets/images/rentals_rlogo.png', height: 30),
+                          child: Image.asset(
+                            'assets/images/rentals_rlogo.png',
+                            height: 30,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Text(item.name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold)),
-                  const Text("aarti_mahajan@gmail.com",
-                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text(
+                    item.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    item.email, // Dynamic email data
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
                   const SizedBox(height: 4),
-                  const Text("70% CIBIL Score",
-                      style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14)),
+                  const Text(
+                    "70% CIBIL Score",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 20),
-                  
+
                   // View Account Button
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
@@ -156,14 +184,17 @@ class _MyrentPageState extends State<MyrentPage> {
                       backgroundColor: const Color(0xFF16BCE6),
                       minimumSize: const Size(165, 35),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25)),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                     ),
-                    child: const Text("View Account",
-                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                    child: const Text(
+                      "View Account",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Bottom Icons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -174,7 +205,7 @@ class _MyrentPageState extends State<MyrentPage> {
                       const SizedBox(width: 15),
                       _buildSocialIcon('assets/icons/call_icon.png'),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -192,9 +223,7 @@ class _MyrentPageState extends State<MyrentPage> {
         color: Color(0xFF16BCE6),
         shape: BoxShape.circle,
       ),
-      child: Center(
-        child: Image.asset(iconPath, height: 20),
-      ),
+      child: Center(child: Image.asset(iconPath, height: 20)),
     );
   }
 
@@ -267,10 +296,13 @@ class _MyrentPageState extends State<MyrentPage> {
                   color: isHostView ? primaryBlue : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('Host',
-                    style: TextStyle(
-                        color: isHostView ? Colors.white : primaryBlue,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Host',
+                  style: TextStyle(
+                    color: isHostView ? Colors.white : primaryBlue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
@@ -283,10 +315,13 @@ class _MyrentPageState extends State<MyrentPage> {
                   color: !isHostView ? primaryBlue : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('Rent',
-                    style: TextStyle(
-                        color: !isHostView ? Colors.white : primaryBlue,
-                        fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Rent',
+                  style: TextStyle(
+                    color: !isHostView ? Colors.white : primaryBlue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
@@ -301,48 +336,82 @@ class _MyrentPageState extends State<MyrentPage> {
       itemCount: rentList.length,
       itemBuilder: (context, index) {
         final item = rentList[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: Image.asset(
-                  item.image,
-                  width: 150,
-                  height: 100,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductPage(
+                  productData: {
+                    'title': item.itemName,
+                    'price': '500', // Placeholder
+                    'imageUrls': [item.image],
+                  },
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.asset(
+                    item.image,
+                    width: 150,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
                       width: 150,
                       height: 100,
                       color: Colors.grey[300],
-                      child: const Icon(Icons.image)),
+                      child: const Icon(Icons.image),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.hostName,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.hostName,
                         style: TextStyle(
-                            color: primaryBlue,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16)),
-                    Text(item.itemName,
+                          color: primaryBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        item.itemName,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 14)),
-                    const SizedBox(height: 10),
-                    Text(item.status,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                    const SizedBox(height: 2),
-                    Text(item.date,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        item.status,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.date,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -360,35 +429,43 @@ class _MyrentPageState extends State<MyrentPage> {
           child: Row(
             children: [
               CircleAvatar(
-                  radius: 38,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: AssetImage(item.profileImg)),
+                radius: 38,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: AssetImage(item.profileImg),
+              ),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name,
-                        style: TextStyle(
-                            color: primaryBlue,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15)),
+                    Text(
+                      item.name,
+                      style: TextStyle(
+                        color: primaryBlue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                     const SizedBox(height: 5),
                     ElevatedButton(
-                      // --- CHANGED: Calls the profile card function ---
                       onPressed: () => _showProfileCard(context, item),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: secondaryBlue,
                         minimumSize: const Size(100, 25),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5)),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
                         padding: EdgeInsets.zero,
                       ),
-                      child: const Text('View Profile',
-                          style: TextStyle(color: Colors.white, fontSize: 11)),
+                      child: const Text(
+                        'View Profile',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
+                      ),
                     ),
-                    Text(item.date,
-                        style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                    Text(
+                      item.date,
+                      style: const TextStyle(color: Colors.grey, fontSize: 10),
+                    ),
                   ],
                 ),
               ),
@@ -400,10 +477,11 @@ class _MyrentPageState extends State<MyrentPage> {
                   height: 70,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
-                      width: 110,
-                      height: 70,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.shopping_bag)),
+                    width: 110,
+                    height: 70,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.shopping_bag),
+                  ),
                 ),
               ),
             ],

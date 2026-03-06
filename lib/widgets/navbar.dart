@@ -26,7 +26,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
-    {'icon': 'assets/icons/jwellery_icon.png', 'label': 'Jwellery'},
+    {'icon': 'assets/icons/jwellery_icon.png', 'label': 'Jewelry'},
     {'icon': 'assets/icons/vehicle_icon.png', 'label': 'Vehicle'},
     {'icon': 'assets/icons/house_icon.png', 'label': 'House'},
     {'icon': 'assets/icons/electronic_icon.png', 'label': 'Electronics'},
@@ -35,7 +35,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/game_icon.png', 'label': 'Game'},
     {'icon': 'assets/icons/gym_icon.png', 'label': 'GYM'},
     {'icon': 'assets/icons/travel_icon.png', 'label': 'Travel'},
-    {'icon': 'assets/icons/decore_icon.png', 'label': 'Decore'},
+    {'icon': 'assets/icons/decore_icon.png', 'label': 'Decor'},
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
     {'icon': 'assets/icons/furniture_icon.png', 'label': 'Furniture'},
@@ -45,13 +45,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
   ];
 
-  // --- REMOVED CONST FROM ACCPAGE HERE ---
+  // --- UPDATED: Removed RentPage to decouple it from the bottom navbar ---
   final List<Widget> pages = [
-    const HomePage(),
-    const ChatPage(),
-    const RentPage(),
-    const MyrentPage(),
-    AccPage(),
+    const HomePage(), // Index 0
+    const ChatPage(), // Index 1
+    const MyrentPage(), // Index 2 (Shifted from 3)
+    const AccPage(), // Index 3 (Shifted from 4)
   ];
 
   @override
@@ -61,6 +60,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void toggleMenu() {
@@ -122,8 +127,9 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                 _navItem('assets/icons/home_icon.png', "Home", 0),
                 _navItem('assets/icons/chat_icon.png', "Chat", 1),
                 const SizedBox(width: 50),
-                _navItem('assets/icons/MyRent_icon.png', "My Rent", 3),
-                _navItem('assets/icons/account_icon.png', "Account", 4),
+                // --- UPDATED INDICES FOR REMAINING TABS ---
+                _navItem('assets/icons/MyRent_icon.png', "My Rent", 2),
+                _navItem('assets/icons/account_icon.png', "Account", 3),
               ],
             ),
           ),
@@ -132,12 +138,17 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
             child: GestureDetector(
               onTap: toggleMenu,
               onLongPress: () {
+                // --- UPDATED: Use Navigator.push instead of changing selectIndex ---
                 setState(() {
-                  selectIndex = 2;
                   isMenuOpen = false;
                   _animationController.reverse();
                 });
                 HapticFeedback.heavyImpact();
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RentPage()),
+                );
               },
               child: Container(
                 width: 60,
@@ -296,14 +307,22 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                           angle: -angle,
                                           child: GestureDetector(
                                             onTap: () {
+                                              // --- UPDATED: Use Navigator.push here too ---
                                               RentPage.categoryController.text =
                                                   menuItems[actualIndex]['label'];
                                               setState(() {
-                                                selectIndex = 2;
                                                 isMenuOpen = false;
                                                 _animationController.reverse();
                                               });
                                               HapticFeedback.mediumImpact();
+
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const RentPage(),
+                                                ),
+                                              );
                                             },
                                             child: _fanOption(
                                               menuItems[actualIndex]['icon'],

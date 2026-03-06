@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:rentals/views/chat/chat_page.dart'; // Ensure this import is present for the chat button
 
 class ProductPage extends StatefulWidget {
-  const ProductPage({super.key});
+  final Map<String, dynamic>?
+  productData; // Field added to receive Firestore data
+
+  const ProductPage({
+    super.key,
+    this.productData,
+  }); // Constructor updated with named parameter
 
   @override
   State<ProductPage> createState() => _ProductPageState();
@@ -13,16 +20,26 @@ class _ProductPageState extends State<ProductPage> {
   final PageController _pageController = PageController();
   int _currentOfferIndex = 0;
   Timer? _offerTimer;
-  
-  final List<String> _offerImages = [
-    'assets/images/speaker_img.png', 
-    'assets/images/speaker_img.png',
-    'assets/images/speaker_img.png',
-  ];
+
+  List<String> _offerImages = [];
 
   @override
   void initState() {
     super.initState();
+
+    // Load images from Firestore data, or fallback to static assets
+    if (widget.productData != null &&
+        widget.productData!['imageUrls'] != null &&
+        (widget.productData!['imageUrls'] as List).isNotEmpty) {
+      _offerImages = List<String>.from(widget.productData!['imageUrls']);
+    } else {
+      _offerImages = [
+        'assets/images/speaker_img.png',
+        'assets/images/speaker_img.png',
+        'assets/images/speaker_img.png',
+      ];
+    }
+
     _startOfferTimer();
   }
 
@@ -35,6 +52,8 @@ class _ProductPageState extends State<ProductPage> {
 
   void _startOfferTimer() {
     _offerTimer = Timer.periodic(const Duration(seconds: 9), (Timer timer) {
+      if (_offerImages.isEmpty) return;
+
       if (_currentOfferIndex < _offerImages.length - 1) {
         _currentOfferIndex++;
       } else {
@@ -120,12 +139,20 @@ class _ProductPageState extends State<ProductPage> {
             children: [
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Image.asset('assets/icons/arrow_icon.png', height: 24, width: 24),
+                child: Image.asset(
+                  'assets/icons/arrow_icon.png',
+                  height: 24,
+                  width: 24,
+                ),
               ),
               const SizedBox(width: 7),
               const Text(
                 'Product',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontFamily: 'Asap'),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontFamily: 'Asap',
+                ),
               ),
             ],
           ),
@@ -135,9 +162,15 @@ class _ProductPageState extends State<ProductPage> {
             padding: const EdgeInsets.all(6),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)]),
+              gradient: LinearGradient(
+                colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)],
+              ),
             ),
-            child: Image.asset('assets/icons/like_icon.png', height: 18, width: 18,),
+            child: Image.asset(
+              'assets/icons/like_icon.png',
+              height: 18,
+              width: 18,
+            ),
           ),
         ],
       ),
@@ -153,10 +186,17 @@ class _ProductPageState extends State<ProductPage> {
           borderRadius: BorderRadius.circular(15),
           child: PageView.builder(
             controller: _pageController,
-            onPageChanged: (index) => setState(() => _currentOfferIndex = index),
+            onPageChanged: (index) =>
+                setState(() => _currentOfferIndex = index),
             itemCount: _offerImages.length,
             itemBuilder: (context, index) {
-              return Image.asset(_offerImages[index], fit: BoxFit.cover);
+              final imageUrl = _offerImages[index];
+              // Support both network images from Firebase and local asset fallback
+              if (imageUrl.startsWith('http')) {
+                return Image.network(imageUrl, fit: BoxFit.cover);
+              } else {
+                return Image.asset(imageUrl, fit: BoxFit.cover);
+              }
             },
           ),
         ),
@@ -175,7 +215,9 @@ class _ProductPageState extends State<ProductPage> {
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: index == _currentOfferIndex ? const Color(0xFF113F67) : const Color(0xFF00B0FF),
+            color: index == _currentOfferIndex
+                ? const Color(0xFF113F67)
+                : const Color(0xFF00B0FF),
           ),
         ),
       ),
@@ -189,12 +231,32 @@ class _ProductPageState extends State<ProductPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Jbl Speaker', style: TextStyle(color: Color(0xFF113F67), fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'Days One')),
-              Text('Portable', style: TextStyle(color: Color(0xFF6F7172), fontSize: 16)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.productData?['title'] ?? 'Jbl Speaker',
+                  style: const TextStyle(
+                    color: Color(0xFF113F67),
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Days One',
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  widget.productData?['subcategory'] ??
+                      widget.productData?['subtitle'] ??
+                      'Portable',
+                  style: const TextStyle(
+                    color: Color(0xFF6F7172),
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -204,8 +266,15 @@ class _ProductPageState extends State<ProductPage> {
             ),
             child: Row(
               children: [
-                const Text('3.7 ', style: TextStyle(color: Colors.white, fontSize: 12)),
-                Image.asset('assets/icons/star_icon.png', height: 14, width: 14),
+                const Text(
+                  '3.7 ',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                Image.asset(
+                  'assets/icons/star_icon.png',
+                  height: 14,
+                  width: 14,
+                ),
               ],
             ),
           ),
@@ -220,7 +289,10 @@ class _ProductPageState extends State<ProductPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Seller', style: TextStyle(color: Color(0xFF113F67), fontSize: 16)),
+          const Text(
+            'Seller',
+            style: TextStyle(color: Color(0xFF113F67), fontSize: 16),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(12),
@@ -230,16 +302,37 @@ class _ProductPageState extends State<ProductPage> {
             ),
             child: Row(
               children: [
-                const CircleAvatar(radius: 22, backgroundImage: AssetImage('assets/images/profile_img2.png')),
+                const CircleAvatar(
+                  radius: 22,
+                  backgroundImage: AssetImage('assets/images/profile_img2.png'),
+                ),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text('Steve\nHarrington', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Days One')),
+                  child: Text(
+                    'Steve\nHarrington',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Days One',
+                    ),
+                  ),
                 ),
-                _buildActionIcon(Image.asset('assets/icons/map_icon2.png',)),
+                _buildActionIcon(Image.asset('assets/icons/map_icon2.png')),
                 const SizedBox(width: 10),
-                _buildActionIcon(Image.asset('assets/icons/chat_icon2.png',)),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                    );
+                  },
+                  child: _buildActionIcon(
+                    Image.asset('assets/icons/chat_icon2.png'),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                _buildActionIcon(Image.asset('assets/icons/call_icon.png',)),
+                _buildActionIcon(Image.asset('assets/icons/call_icon.png')),
               ],
             ),
           ),
@@ -255,14 +348,31 @@ class _ProductPageState extends State<ProductPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           RichText(
-            text: const TextSpan(
+            text: TextSpan(
               children: [
-                TextSpan(text: 'Rs. 500 ', style: TextStyle(color: Color(0xFF113F67), fontSize: 24, fontWeight: FontWeight.bold)),
-                TextSpan(text: 'per week', style: TextStyle(color: Color(0xFF113F67), fontSize: 16, fontWeight: FontWeight.w600)),
+                TextSpan(
+                  text: 'Rs. ${widget.productData?['price'] ?? '500'} ',
+                  style: const TextStyle(
+                    color: Color(0xFF113F67),
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextSpan(
+                  text: widget.productData?['duration'] ?? 'per week',
+                  style: const TextStyle(
+                    color: Color(0xFF113F67),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
-          const Text('Deposit - 000 Rs.', style: TextStyle(color: Colors.black, fontSize: 14)),
+          Text(
+            'Deposit - ${widget.productData?['deposit'] ?? '000'} Rs.',
+            style: const TextStyle(color: Colors.black, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -274,11 +384,23 @@ class _ProductPageState extends State<ProductPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Description -', style: TextStyle(color: Color(0xFF113F67), fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            'Description -',
+            style: TextStyle(
+              color: Color(0xFF113F67),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 10),
           Text(
-            'The JBL portable bluetooth colourful speaker delivers clear, powerful sound in a compact design.\nIt connects easily to your phone with Bluetooth.\nThe bright colours give it a fun and stylish look...',
-            style: TextStyle(color: const Color(0xFF6F7172).withOpacity(0.8), fontSize: 15, height: 1.4),
+            widget.productData?['description'] ??
+                'The JBL portable bluetooth colourful speaker delivers clear, powerful sound in a compact design.\nIt connects easily to your phone with Bluetooth.\nThe bright colours give it a fun and stylish look...',
+            style: TextStyle(
+              color: const Color(0xFF6F7172).withOpacity(0.8),
+              fontSize: 15,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -297,14 +419,29 @@ class _ProductPageState extends State<ProductPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Total Price\nRs.', style: TextStyle(color: Colors.white, fontSize: 14)),
+            Text(
+              'Total Price\nRs. ${widget.productData?['price'] ?? '500'}',
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
             Row(
               children: [
-                const Text('Add My Rent', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Add My Rent',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Image.asset('assets/icons/MyRent_icon.png', height: 20, width: 20, color: Colors.white),
+                Image.asset(
+                  'assets/icons/MyRent_icon.png',
+                  height: 20,
+                  width: 20,
+                  color: Colors.white,
+                ),
               ],
-            )
+            ),
           ],
         ),
       ),
@@ -320,7 +457,9 @@ class _ProductPageState extends State<ProductPage> {
       padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)]),
+        gradient: LinearGradient(
+          colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)],
+        ),
       ),
       child: iconWidget,
     );
