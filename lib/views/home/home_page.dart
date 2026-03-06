@@ -3,6 +3,10 @@ import 'package:rentals/views/product/product_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
+// --- GLOBAL LIKE LIST ---
+// This stores the liked items so the LikePage can access them.
+List<Map<String, dynamic>> globalLikedItems = [];
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -38,14 +42,12 @@ class _HomePageState extends State<HomePage> {
     'assets/images/offer3.png',
   ];
 
-  // --- THE FIX: Declare a persistent stream variable ---
   late Stream<QuerySnapshot> _rentalsStream;
 
   @override
   void initState() {
     super.initState();
 
-    // --- THE FIX: Initialize the stream exactly once ---
     _rentalsStream = FirebaseFirestore.instance
         .collection('rentals')
         .orderBy('createdAt', descending: true)
@@ -164,11 +166,9 @@ class _HomePageState extends State<HomePage> {
                     _buildSectionTitle("Top Deals"),
 
                     StreamBuilder<QuerySnapshot>(
-                      // --- THE FIX: Use the persistent stream here ---
                       stream: _rentalsStream,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
@@ -188,17 +188,14 @@ class _HomePageState extends State<HomePage> {
                           physics: const NeverScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           itemCount: items.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.75,
-                                mainAxisSpacing: 15,
-                                crossAxisSpacing: 15,
-                              ),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            mainAxisSpacing: 15,
+                            crossAxisSpacing: 15,
+                          ),
                           itemBuilder: (context, index) {
-                            final data =
-                                items[index].data() as Map<String, dynamic>;
-
+                            final data = items[index].data() as Map<String, dynamic>;
                             return _buildDealCard(context, data);
                           },
                         );
@@ -266,16 +263,16 @@ class _HomePageState extends State<HomePage> {
             child: Row(
               children: [
                 Image.asset("assets/icons/search_icon.png", height: 20),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     cursorColor: const Color(0xFF113F67),
-                    style: const TextStyle(color: Colors.black, fontSize: 18),
+                    style: const TextStyle(color: Color(0xFF113F67), fontSize: 16),
                     decoration: InputDecoration(
                       hintText: _displayedText,
                       hintStyle: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 18,
+                        color: Color(0xFF113F67),
+                        fontSize: 16,
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -287,7 +284,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        const SizedBox(width: 25),
+        const SizedBox(width: 20),
         Image.asset("assets/icons/cart_icon.png", height: 24, width: 24),
       ],
     );
@@ -366,6 +363,44 @@ class _HomePageState extends State<HomePage> {
           opacity: 0.4,
         ),
       ),
+
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Image.asset("assets/icons/nearme_icon.png", height: 20, width: 20, color: const Color(0xFF113F67)),
+                    const SizedBox(width: 5),
+                    const Text("Near Me", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF113F67))),
+                  ],
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF217DCD), Color(0xFF113F67)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  const Text("View On Maps", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 7),
+                  Image.asset("assets/icons/map_icon.png", height: 14),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -392,7 +427,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPageIndicator() {
-    return const SizedBox();
+    return Positioned(
+      top: 290, 
+      left: 0,
+      right: 0,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          _offerImages.length,
+          (index) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: index == _currentOfferIndex ? 20 : 6, 
+            height: 5, 
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              color: index == _currentOfferIndex 
+                ? const Color(0xFF113F67) 
+                : const Color(0xFF16BCE6),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildDealCard(BuildContext context, Map<String, dynamic> deal) {
@@ -401,66 +457,131 @@ class _HomePageState extends State<HomePage> {
       imageUrl = deal['imageUrls'][0];
     }
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductPage(productData: deal),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFF113F67).withOpacity(0.5)),
-        ),
-        child: Column(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 100,
-                          width: double.infinity,
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.broken_image,
-                            color: Colors.grey,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFF113F67).withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
+            child: SizedBox(
+              width: double.infinity,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            height: 100,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          )
+                        : Container(
+                            height: 100,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
                           ),
-                        );
-                      },
-                    )
-                  : Container(
-                      height: 100,
-                      width: double.infinity,
-                      color: Colors.grey[200],
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
+                  ),
+                  Positioned(
+                    top: 7,
+                    right: 7,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF113F67).withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      // --- Replaced with custom AnimatedLikeButton Widget ---
+                      child: AnimatedLikeButton(deal: deal),
                     ),
-            ),
-            const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Text(
-                deal['title'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                  )
+                ],
               ),
             ),
-            Text("Rs ${deal['price'] ?? ''}"),
-          ],
-        ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        deal['title'] ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900, 
+                          fontSize: 18, 
+                          color: Color(0xFF113F67)
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        deal['subTitle'] ?? '',
+                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "Rs. ${deal['price'] ?? ''}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900, 
+                          fontSize: 18, 
+                          color: Color(0xFF113F67)
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProductPage(productData: deal),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          width: 50,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF113F67), width: 1.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              "assets/icons/rent_icon.png",
+                              errorBuilder: (c, e, s) => const Icon(Icons.arrow_forward_rounded, color: Color(0xFF113F67), size: 16),
+                            ),
+                          ),
+                        ),
+                      )
+                    ],
+                  )
+                ],
+              ),
+            ),
+          )
+        ],
       ),
     );
   }
@@ -474,6 +595,54 @@ class _HomePageState extends State<HomePage> {
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: Color(0xFF113F67),
+        ),
+      ),
+    );
+  }
+}
+
+// --- NEW STATEFUL WIDGET FOR LIKE ANIMATION ---
+class AnimatedLikeButton extends StatefulWidget {
+  final Map<String, dynamic> deal;
+  const AnimatedLikeButton({super.key, required this.deal});
+
+  @override
+  State<AnimatedLikeButton> createState() => _AnimatedLikeButtonState();
+}
+
+class _AnimatedLikeButtonState extends State<AnimatedLikeButton> {
+  @override
+  Widget build(BuildContext context) {
+    // Check if the current deal's title exists in our global liked list
+    bool isLiked = globalLikedItems.any((item) => item['title'] == widget.deal['title']);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isLiked) {
+            // Remove from global list if unliked
+            globalLikedItems.removeWhere((item) => item['title'] == widget.deal['title']);
+          } else {
+            // Add to global list if liked
+            globalLikedItems.add(widget.deal);
+          }
+        });
+      },
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return ScaleTransition(scale: animation, child: child);
+        },
+        child: Image.asset(
+          isLiked ? "assets/icons/like_icon3.png" : "assets/icons/like_icon.png",
+          key: ValueKey<bool>(isLiked), // Key is needed for AnimatedSwitcher to know it changed
+          height: 14,
+          width: 14, // Adding fixed width helps the scale animation look grounded
+          errorBuilder: (c, e, s) => Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border_outlined, 
+            // color: isLiked ? Colors.red : Colors.white, 
+            size: 14
+          ),
         ),
       ),
     );

@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/home/home_page.dart'; // Import this to access the globalLikedItems list!
 
-class LikePage extends StatelessWidget {
+class LikePage extends StatefulWidget {
   const LikePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock data based on your image
-    final List<Product> products = [
-      Product("The Rose Gold Jewellery", "Bracelet | Necklace | Earrings | Rings", 3.7, "assets/images/jwellery.png"),
-      Product("Zara Tied Satin Effect Front Blazer", "Hot Pink Jacket & Coat", 4.7, "assets/images/jacket_img.png"),
-      Product("Sony Camera", "a7 | Mirrorless", 3.3, "assets/images/camera_img.png"),
-      Product("JBL Speaker", "Portable", 4.3, "assets/images/speaker_img.png"),
-      Product("Hooked", "Author Nir Eyal", 4.7, "assets/images/book_img2.png"),
-    ];
+  State<LikePage> createState() => _LikePageState();
+}
 
+class _LikePageState extends State<LikePage> {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF113F67), // Dark blue header area
+      backgroundColor: const Color(0xFF113F67), 
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -30,7 +27,6 @@ class LikePage extends StatelessWidget {
                     onTap: () => Navigator.pop(context),
                     child: Image.asset('assets/icons/arrow_icon.png', height: 24, width: 24),
                   ),
-
                   const SizedBox(width: 7),
                   const Text(
                     'Like',
@@ -60,49 +56,75 @@ class LikePage extends StatelessWidget {
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
                   ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: products.length,
-                    separatorBuilder: (context, index) => const Divider(height: 30, color: Colors.grey),
-                    itemBuilder: (context, index) {
-                      return ProductCard(product: products[index]);
-                    },
-                  ),
+                  // If no items are liked, show a message
+                  child: globalLikedItems.isEmpty 
+                      ? const Center(
+                          child: Text(
+                            "No Liked Items Yet",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: globalLikedItems.length,
+                          separatorBuilder: (context, index) => const Divider(height: 30, color: Colors.grey),
+                          itemBuilder: (context, index) {
+                            return ProductCard(
+                              deal: globalLikedItems[index],
+                              onUnlike: () {
+                                // Update state to remove item when the unlike button is clicked here
+                                setState(() {
+                                  globalLikedItems.removeAt(index);
+                                });
+                              },
+                            );
+                          },
+                        ),
                 ),
               ),
             ),
           ],
         ),
       ),
-
     );
   }
 }
 
 // --- PRODUCT CARD WIDGET ---
 class ProductCard extends StatelessWidget {
-  final Product product;
-  const ProductCard({super.key, required this.product});
+  final Map<String, dynamic> deal; // Changed to accept map from global list
+  final VoidCallback onUnlike;     // Added callback to refresh UI on unlike
+
+  const ProductCard({super.key, required this.deal, required this.onUnlike});
 
   @override
   Widget build(BuildContext context) {
+    String imageUrl = '';
+    if (deal['imageUrls'] != null && (deal['imageUrls'] as List).isNotEmpty) {
+      imageUrl = deal['imageUrls'][0];
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Image Section
         ClipRRect(
           borderRadius: BorderRadius.circular(15),
-          child: Image.asset(
-            product.imagePath,
-            width: 150,
-            height: 100,
-            fit: BoxFit.cover,
-            // Fallback if image not found
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: 150, height: 100, color: Colors.grey[300],
-              child: const Icon(Icons.image),
-            ),
-          ),
+          child: imageUrl.isNotEmpty
+              ? Image.network(
+                  imageUrl,
+                  width: 150,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 150, height: 100, color: Colors.grey[300],
+                    child: const Icon(Icons.broken_image),
+                  ),
+                )
+              : Container(
+                  width: 150, height: 100, color: Colors.grey[300],
+                  child: const Icon(Icons.image_not_supported),
+                ),
         ),
         const SizedBox(width: 12),
         
@@ -116,16 +138,33 @@ class ProductCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      product.title,
+                      deal['title'] ?? '',
                       style: const TextStyle(color: Color(0xFF113F67), fontWeight: FontWeight.bold, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Image.asset('assets/icons/like_icon2.png', height: 20, width: 20,)
+                  // Animated Like Button (Unliking)
+                  GestureDetector(
+                    onTap: onUnlike, // Triggers removal from global list and updates LikePage
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                      child: Image.asset(
+                        'assets/icons/like_icon2.png', // It's currently liked
+                        key: const ValueKey('liked'),
+                        height: 20, 
+                        width: 20,
+                      ),
+                    ),
+                  )
                 ],
               ),
               Text(
-                product.subtitle,
+                deal['subTitle'] ?? '',
                 style: const TextStyle(color: Colors.grey, fontSize: 14),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               
@@ -140,11 +179,11 @@ class ProductCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      product.rating.toString(),
+                      deal['rating']?.toString() ?? '4.3',
                       style: const TextStyle(color: Colors.white, fontSize: 10),
                     ),
                     const SizedBox(width: 2),
-                    Image.asset('assets/icons/star_icon.png', height: 12, width: 12,),
+                    Image.asset('assets/icons/star_icon.png', height: 12, width: 12, errorBuilder: (c,e,s) => const Icon(Icons.star, size: 10, color: Colors.white)),
                   ],
                 ),
               ),
@@ -154,9 +193,9 @@ class ProductCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Rs.",
-                    style: TextStyle(
+                  Text(
+                    "Rs. ${deal['price'] ?? ''}",
+                    style: const TextStyle(
                       color: Color(0xFF113F67),
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -166,7 +205,9 @@ class ProductCard extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const ProductPage()),
+                          MaterialPageRoute(
+                            builder: (context) => ProductPage(productData: deal) // Pass your deal data to the product page!
+                          ),
                         );
                       },
                       child: Container(
@@ -188,14 +229,4 @@ class ProductCard extends StatelessWidget {
       ],
     );
   }
-}
-
-// --- DATA MODEL ---
-class Product {
-  final String title;
-  final String subtitle;
-  final double rating;
-  final String imagePath;
-
-  Product(this.title, this.subtitle, this.rating, this.imagePath);
 }
