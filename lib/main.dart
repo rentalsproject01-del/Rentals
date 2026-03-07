@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rentals/firebase_options.dart';
+import 'package:rentals/views/profile/edit_profile.dart';
 
 // NEW PATHS
 import 'package:rentals/widgets/navbar.dart';
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF113F67)),
       ),
-      home: const AuthGate(),
+      home: const EditProfile(),
     );
   }
 }
