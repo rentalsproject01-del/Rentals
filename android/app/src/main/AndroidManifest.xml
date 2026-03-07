@@ -1,17 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:label="rentals"
+        android:label="Rentals"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <activity
             android:name=".MainActivity"
+            android:label="Rentals"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"

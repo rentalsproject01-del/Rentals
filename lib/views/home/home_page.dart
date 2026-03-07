@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/map/map_page.dart';
+import 'near_me_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
@@ -168,7 +170,8 @@ class _HomePageState extends State<HomePage> {
                     StreamBuilder<QuerySnapshot>(
                       stream: _rentalsStream,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const Center(
                             child: CircularProgressIndicator(),
                           );
@@ -188,14 +191,16 @@ class _HomePageState extends State<HomePage> {
                           physics: const NeverScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           itemCount: items.length,
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.75,
-                            mainAxisSpacing: 15,
-                            crossAxisSpacing: 15,
-                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.75,
+                                mainAxisSpacing: 15,
+                                crossAxisSpacing: 15,
+                              ),
                           itemBuilder: (context, index) {
-                            final data = items[index].data() as Map<String, dynamic>;
+                            final data =
+                                items[index].data() as Map<String, dynamic>;
                             return _buildDealCard(context, data);
                           },
                         );
@@ -267,7 +272,10 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: TextField(
                     cursorColor: const Color(0xFF113F67),
-                    style: const TextStyle(color: Color(0xFF113F67), fontSize: 16),
+                    style: const TextStyle(
+                      color: Color(0xFF113F67),
+                      fontSize: 16,
+                    ),
                     decoration: InputDecoration(
                       hintText: _displayedText,
                       hintStyle: const TextStyle(
@@ -363,7 +371,6 @@ class _HomePageState extends State<HomePage> {
           opacity: 0.4,
         ),
       ),
-
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15),
         child: Row(
@@ -373,29 +380,92 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Image.asset("assets/icons/nearme_icon.png", height: 20, width: 20, color: const Color(0xFF113F67)),
-                    const SizedBox(width: 5),
-                    const Text("Near Me", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF113F67))),
-                  ],
+                // --- STYLED BUTTON FOR "NEAR ME" ---
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NearMePage(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF113F67),
+                        width: 1,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          "assets/icons/nearme_icon.png",
+                          height: 18,
+                          width: 18,
+                          color: const Color(0xFF113F67),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          "Near Me",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF113F67),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF217DCD), Color(0xFF113F67)],
+            // --- EXISTING GESTURE DETECTOR FOR MAP PAGE NAVIGATION ---
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MapPage()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
                 ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  const Text("View On Maps", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 7),
-                  Image.asset("assets/icons/map_icon.png", height: 14),
-                ],
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF217DCD), Color(0xFF113F67)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      "View On Maps",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Image.asset("assets/icons/map_icon.png", height: 14),
+                  ],
+                ),
               ),
             ),
           ],
@@ -428,7 +498,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildPageIndicator() {
     return Positioned(
-      top: 290, 
+      top: 290,
       left: 0,
       right: 0,
       child: Row(
@@ -437,13 +507,13 @@ class _HomePageState extends State<HomePage> {
           _offerImages.length,
           (index) => Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: index == _currentOfferIndex ? 20 : 6, 
-            height: 5, 
+            width: index == _currentOfferIndex ? 20 : 6,
+            height: 5,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              color: index == _currentOfferIndex 
-                ? const Color(0xFF113F67) 
-                : const Color(0xFF16BCE6),
+              color: index == _currentOfferIndex
+                  ? const Color(0xFF113F67)
+                  : const Color(0xFF16BCE6),
             ),
           ),
         ),
@@ -480,31 +550,40 @@ class _HomePageState extends State<HomePage> {
                             fit: BoxFit.cover,
                             height: 100,
                             width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              height: 100,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.broken_image, color: Colors.grey),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  height: 100,
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                           )
                         : Container(
                             height: 100,
                             color: Colors.grey[200],
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
+                            ),
                           ),
                   ),
                   Positioned(
                     top: 7,
                     right: 7,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF113F67).withOpacity(0.85),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      // --- Replaced with custom AnimatedLikeButton Widget ---
                       child: AnimatedLikeButton(deal: deal),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -522,9 +601,9 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         deal['title'] ?? '',
                         style: const TextStyle(
-                          fontWeight: FontWeight.w900, 
-                          fontSize: 18, 
-                          color: Color(0xFF113F67)
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          color: Color(0xFF113F67),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -532,7 +611,10 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 2),
                       Text(
                         deal['subTitle'] ?? '',
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -545,9 +627,9 @@ class _HomePageState extends State<HomePage> {
                       Text(
                         "Rs. ${deal['price'] ?? ''}",
                         style: const TextStyle(
-                          fontWeight: FontWeight.w900, 
-                          fontSize: 18, 
-                          color: Color(0xFF113F67)
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          color: Color(0xFF113F67),
                         ),
                       ),
                       GestureDetector(
@@ -555,7 +637,8 @@ class _HomePageState extends State<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ProductPage(productData: deal),
+                              builder: (context) =>
+                                  ProductPage(productData: deal),
                             ),
                           );
                         },
@@ -564,23 +647,30 @@ class _HomePageState extends State<HomePage> {
                           width: 50,
                           height: 30,
                           decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFF113F67), width: 1.5),
+                            border: Border.all(
+                              color: const Color(0xFF113F67),
+                              width: 1.5,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Center(
                             child: Image.asset(
                               "assets/icons/rent_icon.png",
-                              errorBuilder: (c, e, s) => const Icon(Icons.arrow_forward_rounded, color: Color(0xFF113F67), size: 16),
+                              errorBuilder: (c, e, s) => const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Color(0xFF113F67),
+                                size: 16,
+                              ),
                             ),
                           ),
                         ),
-                      )
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -613,17 +703,18 @@ class AnimatedLikeButton extends StatefulWidget {
 class _AnimatedLikeButtonState extends State<AnimatedLikeButton> {
   @override
   Widget build(BuildContext context) {
-    // Check if the current deal's title exists in our global liked list
-    bool isLiked = globalLikedItems.any((item) => item['title'] == widget.deal['title']);
+    bool isLiked = globalLikedItems.any(
+      (item) => item['title'] == widget.deal['title'],
+    );
 
     return GestureDetector(
       onTap: () {
         setState(() {
           if (isLiked) {
-            // Remove from global list if unliked
-            globalLikedItems.removeWhere((item) => item['title'] == widget.deal['title']);
+            globalLikedItems.removeWhere(
+              (item) => item['title'] == widget.deal['title'],
+            );
           } else {
-            // Add to global list if liked
             globalLikedItems.add(widget.deal);
           }
         });
@@ -634,14 +725,15 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton> {
           return ScaleTransition(scale: animation, child: child);
         },
         child: Image.asset(
-          isLiked ? "assets/icons/like_icon3.png" : "assets/icons/like_icon.png",
-          key: ValueKey<bool>(isLiked), // Key is needed for AnimatedSwitcher to know it changed
+          isLiked
+              ? "assets/icons/like_icon3.png"
+              : "assets/icons/like_icon.png",
+          key: ValueKey<bool>(isLiked),
           height: 14,
-          width: 14, // Adding fixed width helps the scale animation look grounded
+          width: 14,
           errorBuilder: (c, e, s) => Icon(
-            isLiked ? Icons.favorite : Icons.favorite_border_outlined, 
-            // color: isLiked ? Colors.red : Colors.white, 
-            size: 14
+            isLiked ? Icons.favorite : Icons.favorite_border_outlined,
+            size: 14,
           ),
         ),
       ),

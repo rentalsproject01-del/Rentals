@@ -4,6 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
+import 'location_picker_page.dart'; // <--- This relative import forces it to look in the exact same folder
 import 'dart:async';
 
 class RentPage extends StatefulWidget {
@@ -27,10 +30,17 @@ class _RentPageState extends State<RentPage> {
   final _depositController = TextEditingController();
   final _priceController = TextEditingController();
   final _subcategoryController = TextEditingController();
-  final _locationController = TextEditingController(text: "Current");
+  final _locationController = TextEditingController(
+    text: "Detecting...",
+  ); // Starts by showing it's loading
   final _phoneController = TextEditingController(text: "xxxxxxxxx");
 
   String selectedDuration = 'per day';
+
+  // --- LOCATION STATE ---
+  double? _latitude;
+  double? _longitude;
+  bool _isFetchingLocation = false;
 
   // --- IMAGE UPLOAD STATE ---
   List<File> _selectedImages = [];
@@ -45,6 +55,7 @@ class _RentPageState extends State<RentPage> {
   void initState() {
     super.initState();
     _startOfferTimer();
+    _getCurrentLocation(); // --- NEW: Auto-detect location when page opens ---
   }
 
   @override
@@ -81,6 +92,85 @@ class _RentPageState extends State<RentPage> {
         );
       }
     });
+  }
+
+  // --- FETCH LOCATION LOGIC ---
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _isFetchingLocation = false;
+          _locationController.text = "Location Disabled";
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _isFetchingLocation = false;
+            _locationController.text = "Permission Denied";
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _isFetchingLocation = false;
+          _locationController.text = "Permission Denied";
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+
+      if (mounted) {
+        setState(() {
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          _locationController.text =
+              "Current Location"; // --- NEW: Updated label ---
+          _isFetchingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+          _locationController.text = "Failed to detect";
+        });
+      }
+    }
+  }
+
+  // --- NEW: OPEN MAP PICKER LOGIC ---
+  Future<void> _openMapPicker() async {
+    LatLng? initialPoint;
+    if (_latitude != null && _longitude != null) {
+      initialPoint = LatLng(_latitude!, _longitude!);
+    }
+
+    // Wait for the user to select a location and pop the screen
+    final LatLng? pickedLocation = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerPage(initialLocation: initialPoint),
+      ),
+    );
+
+    // If they picked a location, update our state!
+    if (pickedLocation != null && mounted) {
+      setState(() {
+        _latitude = pickedLocation.latitude;
+        _longitude = pickedLocation.longitude;
+        _locationController.text = "Custom Location";
+      });
+    }
   }
 
   // --- 1. SHOW BOTTOM SHEET TO PICK IMAGES ---
@@ -154,6 +244,15 @@ class _RentPageState extends State<RentPage> {
       return;
     }
 
+    if (_latitude == null || _longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait for location or set one manually.'),
+        ),
+      );
+      return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(
@@ -192,6 +291,8 @@ class _RentPageState extends State<RentPage> {
         'category': RentPage.categoryController.text.trim(),
         'subcategory': _subcategoryController.text.trim(),
         'location': _locationController.text.trim(),
+        'latitude': _latitude,
+        'longitude': _longitude,
         'phoneNumber': _phoneController.text.trim(),
         'imageUrls': uploadedImageUrls,
         'createdAt': FieldValue.serverTimestamp(),
@@ -203,7 +304,6 @@ class _RentPageState extends State<RentPage> {
           const SnackBar(content: Text('Item uploaded successfully!')),
         );
 
-        // --- THE FIX: Clear the form instead of popping the app ---
         setState(() {
           _selectedImages.clear();
           _titleController.clear();
@@ -212,10 +312,12 @@ class _RentPageState extends State<RentPage> {
           _depositController.clear();
           _priceController.clear();
           _subcategoryController.clear();
-          _locationController.text = "Current";
           _phoneController.text = "xxxxxxxxx";
           _currentOfferIndex = 0;
         });
+
+        // Re-detect location for the next upload
+        _getCurrentLocation();
       }
     } catch (e) {
       if (mounted) {
@@ -242,7 +344,6 @@ class _RentPageState extends State<RentPage> {
               child: Row(
                 children: [
                   GestureDetector(
-                    // --- SAFETY CHECK FOR BACK ARROW ---
                     onTap: () {
                       if (Navigator.canPop(context)) {
                         Navigator.pop(context);
@@ -270,7 +371,6 @@ class _RentPageState extends State<RentPage> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // --- BOTTOM LAYER: WHITE FORM CONTAINER ---
                   Positioned(
                     top: 75,
                     left: 0,
@@ -343,10 +443,15 @@ class _RentPageState extends State<RentPage> {
 
                               const SizedBox(height: 15),
 
+                              // --- UPDATED: Connect map picker and change button label ---
                               _buildActionButtonField(
                                 "Location",
-                                "Current",
+                                "Detecting...",
                                 controller: _locationController,
+                                onActionTap: _openMapPicker,
+                                isFetching: _isFetchingLocation,
+                                buttonLabel:
+                                    "Set Location", // --- NEW parameter usage ---
                               ),
                               _buildActionButtonField(
                                 "Number",
@@ -414,7 +519,6 @@ class _RentPageState extends State<RentPage> {
                     ),
                   ),
 
-                  // --- TOP LAYER: IMAGE SLIDER AND ADD BUTTON ---
                   Positioned(
                     top: 0,
                     left: 0,
@@ -574,6 +678,7 @@ class _RentPageState extends State<RentPage> {
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
+        readOnly: label == "Location", // Prevent manual typing for location
         initialValue: controller == null ? initialValue : null,
         maxLines: maxLines,
         style: const TextStyle(
@@ -679,10 +784,14 @@ class _RentPageState extends State<RentPage> {
     );
   }
 
+  // --- UPDATED: added buttonLabel with flexible width ---
   Widget _buildActionButtonField(
     String label,
     String value, {
     TextEditingController? controller,
+    VoidCallback? onActionTap,
+    bool isFetching = false,
+    String buttonLabel = "Change",
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -700,10 +809,15 @@ class _RentPageState extends State<RentPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: GestureDetector(
-              onTap: () {},
+              onTap: onActionTap ?? () {},
               child: Container(
                 height: 37,
-                width: 85,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                ), // Adjusts dynamically to text length
+                constraints: const BoxConstraints(
+                  minWidth: 85,
+                ), // Matches your original width
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF16BCE6), width: 1),
@@ -714,15 +828,24 @@ class _RentPageState extends State<RentPage> {
                     ],
                   ),
                 ),
-                child: const Center(
-                  child: Text(
-                    "Change",
-                    style: TextStyle(
-                      color: Color(0xFF0D3454),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
+                child: Center(
+                  child: isFetching
+                      ? const SizedBox(
+                          height: 15,
+                          width: 15,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0D3454),
+                          ),
+                        )
+                      : Text(
+                          buttonLabel, // Uses "Set Location" or "Change"
+                          style: const TextStyle(
+                            color: Color(0xFF0D3454),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -732,7 +855,6 @@ class _RentPageState extends State<RentPage> {
     );
   }
 
-  // --- FIXED ELEVATED BUTTON ---
   Widget _buildAddImageButton() {
     return ElevatedButton.icon(
       onPressed: _showImagePickerOptions,
