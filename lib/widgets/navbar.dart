@@ -26,7 +26,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
-    {'icon': 'assets/icons/jwellery_icon.png', 'label': 'Jewelry'},
+    {'icon': 'assets/icons/jwellery_icon.png', 'label': 'Jewellery'},
     {'icon': 'assets/icons/vehicle_icon.png', 'label': 'Vehicle'},
     {'icon': 'assets/icons/house_icon.png', 'label': 'House'},
     {'icon': 'assets/icons/electronic_icon.png', 'label': 'Electronics'},
