@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:rentals/views/product/product_page.dart';
-import 'package:rentals/services/transaction_service.dart';
-import 'package:rentals/models/transaction_model.dart';
+import 'package:flutter/material.dart';
+
+import '../../core/constants/app_colors.dart';
+import '../../widgets/loading_widget.dart';
+import '../../services/transaction_service.dart';
+import '../../models/transaction_model.dart';
+import '../product/product_page.dart';
 
 class MyrentPage extends StatefulWidget {
   const MyrentPage({super.key});
@@ -13,9 +16,6 @@ class MyrentPage extends StatefulWidget {
 
 class _MyrentPageState extends State<MyrentPage> {
   bool isHostView = false;
-
-  final Color primaryBlue = const Color(0xFF113F67);
-  final Color secondaryBlue = const Color(0xFF16BCE6);
   final Color lightGrey = const Color(0xFFE9E4E4);
 
   // --- PROFILE CARD DIALOG ---
@@ -82,7 +82,7 @@ class _MyrentPageState extends State<MyrentPage> {
                   Text(
                     name,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -104,7 +104,7 @@ class _MyrentPageState extends State<MyrentPage> {
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF16BCE6),
+                      backgroundColor: AppColors.secondary,
                       minimumSize: const Size(165, 35),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25),
@@ -112,7 +112,7 @@ class _MyrentPageState extends State<MyrentPage> {
                     ),
                     child: const Text(
                       "View Account",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                      style: TextStyle(color: AppColors.white, fontSize: 16),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -140,7 +140,7 @@ class _MyrentPageState extends State<MyrentPage> {
       height: 45,
       width: 45,
       decoration: const BoxDecoration(
-        color: Color(0xFF16BCE6),
+        color: AppColors.secondary,
         shape: BoxShape.circle,
       ),
       child: Center(child: Image.asset(iconPath, height: 20)),
@@ -150,7 +150,7 @@ class _MyrentPageState extends State<MyrentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: primaryBlue,
+      backgroundColor: AppColors.primary,
       body: Column(
         children: [
           Padding(
@@ -165,7 +165,7 @@ class _MyrentPageState extends State<MyrentPage> {
                 const SizedBox(width: 7),
                 const Text(
                   'My Rent',
-                  style: TextStyle(color: Colors.white, fontSize: 20),
+                  style: TextStyle(color: AppColors.white, fontSize: 20),
                 ),
               ],
             ),
@@ -174,7 +174,7 @@ class _MyrentPageState extends State<MyrentPage> {
             child: Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(30),
                   topRight: Radius.circular(30),
@@ -213,13 +213,13 @@ class _MyrentPageState extends State<MyrentPage> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isHostView ? primaryBlue : Colors.transparent,
+                  color: isHostView ? AppColors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   'Host',
                   style: TextStyle(
-                    color: isHostView ? Colors.white : primaryBlue,
+                    color: isHostView ? AppColors.white : AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -232,13 +232,13 @@ class _MyrentPageState extends State<MyrentPage> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: !isHostView ? primaryBlue : Colors.transparent,
+                  color: !isHostView ? AppColors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   'Rent',
                   style: TextStyle(
-                    color: !isHostView ? Colors.white : primaryBlue,
+                    color: !isHostView ? AppColors.white : AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -254,10 +254,8 @@ class _MyrentPageState extends State<MyrentPage> {
     return StreamBuilder<List<TransactionModel>>(
       stream: TransactionService.getUserRents(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: primaryBlue));
-        }
-
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const LoadingWidget();
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Text(
@@ -268,13 +266,11 @@ class _MyrentPageState extends State<MyrentPage> {
         }
 
         final transactions = snapshot.data!;
-
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: transactions.length,
           itemBuilder: (context, index) {
             final transaction = transactions[index];
-
             return GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -317,8 +313,8 @@ class _MyrentPageState extends State<MyrentPage> {
                         children: [
                           Text(
                             transaction.hostName,
-                            style: TextStyle(
-                              color: primaryBlue,
+                            style: const TextStyle(
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -367,10 +363,8 @@ class _MyrentPageState extends State<MyrentPage> {
     return StreamBuilder<List<TransactionModel>>(
       stream: TransactionService.getUserHosts(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: primaryBlue));
-        }
-
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const LoadingWidget();
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Text(
@@ -381,13 +375,11 @@ class _MyrentPageState extends State<MyrentPage> {
         }
 
         final transactions = snapshot.data!;
-
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: transactions.length,
           itemBuilder: (context, index) {
             final transaction = transactions[index];
-
             return Padding(
               padding: const EdgeInsets.only(bottom: 27),
               child: Row(
@@ -409,8 +401,8 @@ class _MyrentPageState extends State<MyrentPage> {
                       children: [
                         Text(
                           transaction.renterName,
-                          style: TextStyle(
-                            color: primaryBlue,
+                          style: const TextStyle(
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
@@ -422,7 +414,7 @@ class _MyrentPageState extends State<MyrentPage> {
                           onPressed: () =>
                               _showProfileCard(context, transaction),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: secondaryBlue,
+                            backgroundColor: AppColors.secondary,
                             minimumSize: const Size(100, 25),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(5),
@@ -431,7 +423,10 @@ class _MyrentPageState extends State<MyrentPage> {
                           ),
                           child: const Text(
                             'View Profile',
-                            style: TextStyle(color: Colors.white, fontSize: 11),
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
                         Text(

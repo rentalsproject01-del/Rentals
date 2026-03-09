@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:rentals/views/profile/setting_page.dart';
-import 'package:rentals/views/product/product_page.dart';
-import 'package:rentals/views/profile/like_page.dart';
-import 'package:rentals/views/profile/edit_profile.dart'; // Required import added
-import 'package:rentals/services/user_service.dart';
-import 'package:rentals/services/transaction_service.dart';
-import 'package:rentals/models/transaction_model.dart';
+import '../../core/constants/app_colors.dart';
+import '../../widgets/loading_widget.dart';
+import 'setting_page.dart';
+import 'edit_profile.dart';
+import 'like_page.dart';
+import '../product/product_page.dart';
+
+import '../../services/user_service.dart';
+import '../../services/transaction_service.dart';
+import '../../models/transaction_model.dart';
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -25,7 +28,7 @@ class _AccPageState extends State<AccPage> {
     return Scaffold(
       key: _scaffoldKey,
       endDrawer: const SettingPage(),
-      backgroundColor: const Color(0xFF113F67),
+      backgroundColor: AppColors.primary,
       body: Column(
         children: [
           _buildProfileHeader(context),
@@ -33,7 +36,7 @@ class _AccPageState extends State<AccPage> {
             child: Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(25),
                   topRight: Radius.circular(25),
@@ -75,7 +78,7 @@ class _AccPageState extends State<AccPage> {
                   const Text(
                     'Profile',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontSize: 20,
                       fontFamily: 'Asap',
                     ),
@@ -85,14 +88,10 @@ class _AccPageState extends State<AccPage> {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LikePage(),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LikePage()),
+                    ),
                     child: Image.asset(
                       'assets/icons/like_icon.png',
                       height: 20,
@@ -113,30 +112,24 @@ class _AccPageState extends State<AccPage> {
             ],
           ),
           const SizedBox(height: 20),
-
           StreamBuilder<Map<String, dynamic>?>(
             stream: UserService.getUserProfileStream(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting)
                 return const Padding(
                   padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(color: Color(0xFF16BCE6)),
+                  child: LoadingWidget(),
                 );
-              }
-
-              if (snapshot.hasError) {
+              if (snapshot.hasError)
                 return const Text(
                   "Error loading profile",
                   style: TextStyle(color: Colors.redAccent),
                 );
-              }
-
-              if (!snapshot.hasData || snapshot.data == null) {
+              if (!snapshot.hasData || snapshot.data == null)
                 return const Text(
                   "Profile not found",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 );
-              }
 
               var userData = snapshot.data!;
               String name = userData['name'] ?? 'Unknown User';
@@ -165,19 +158,16 @@ class _AccPageState extends State<AccPage> {
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    EditProfile(), // Removed const
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfile(),
+                            ),
+                          ),
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: const BoxDecoration(
-                              color: Color(0xFF16BCE6),
+                              color: AppColors.secondary,
                               shape: BoxShape.circle,
                             ),
                             child: Image.asset(
@@ -194,7 +184,7 @@ class _AccPageState extends State<AccPage> {
                   Text(
                     name,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontSize: 18,
                       fontFamily: 'Asap',
                     ),
@@ -228,9 +218,7 @@ class _AccPageState extends State<AccPage> {
             Image.asset(
               'assets/icons/host_icon.png',
               height: 20,
-              color: isHostView
-                  ? const Color(0xFF00A2FF)
-                  : const Color(0xFF113F67),
+              color: isHostView ? const Color(0xFF00A2FF) : AppColors.primary,
             ),
             () => setState(() => isHostView = true),
           ),
@@ -240,9 +228,7 @@ class _AccPageState extends State<AccPage> {
             Image.asset(
               'assets/icons/MyRent_icon3.png',
               height: 20,
-              color: !isHostView
-                  ? const Color(0xFF00A2FF)
-                  : const Color(0xFF113F67),
+              color: !isHostView ? const Color(0xFF00A2FF) : AppColors.primary,
             ),
             () => setState(() => isHostView = false),
           ),
@@ -269,9 +255,7 @@ class _AccPageState extends State<AccPage> {
                 label,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isActive
-                      ? const Color(0xFF00A2FF)
-                      : const Color(0xFF113F67),
+                  color: isActive ? const Color(0xFF00A2FF) : AppColors.primary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -291,40 +275,30 @@ class _AccPageState extends State<AccPage> {
           ? TransactionService.getUserHosts()
           : TransactionService.getUserRents(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF113F67)),
-          );
-        }
-
-        if (snapshot.hasError) {
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const LoadingWidget();
+        if (snapshot.hasError)
           return const Center(
             child: Text(
               "Error loading transactions.",
               style: TextStyle(color: Colors.redAccent),
             ),
           );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty)
           return Center(
             child: Text(
               isHost ? "No items hosted yet." : "No items rented yet.",
               style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
           );
-        }
 
         final items = snapshot.data!;
-
         return ListView.separated(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: items.length,
           separatorBuilder: (context, index) =>
               const Divider(color: Color(0xFF9FA1A2), thickness: 1.5),
-          itemBuilder: (context, index) {
-            return _buildListItem(items[index]);
-          },
+          itemBuilder: (context, index) => _buildListItem(items[index]),
         );
       },
     );
@@ -332,7 +306,6 @@ class _AccPageState extends State<AccPage> {
 
   Widget _buildListItem(TransactionModel item) {
     String ratingText = item.rating != null ? item.rating.toString() : '-';
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -376,7 +349,7 @@ class _AccPageState extends State<AccPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF113F67),
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Row(
@@ -385,7 +358,7 @@ class _AccPageState extends State<AccPage> {
                       Text(
                         '$ratingText ',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontSize: 10,
                         ),
                       ),
@@ -404,38 +377,35 @@ class _AccPageState extends State<AccPage> {
                     Text(
                       'Rs. ${item.price}',
                       style: const TextStyle(
-                        color: Color(0xFF113F67),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     if (!isHostView)
                       GestureDetector(
-                        onTap: () {
-                          final productMap = {
-                            'title': item.itemName,
-                            'price': item.price,
-                            'imageUrls': item.itemImage.isNotEmpty
-                                ? [item.itemImage]
-                                : [],
-                            'ownerId': item.hostId,
-                            'id': item.rentalId,
-                          };
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ProductPage(productData: productMap),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProductPage(
+                              productData: {
+                                'title': item.itemName,
+                                'price': item.price,
+                                'imageUrls': item.itemImage.isNotEmpty
+                                    ? [item.itemImage]
+                                    : [],
+                                'ownerId': item.hostId,
+                                'id': item.rentalId,
+                              },
                             ),
-                          );
-                        },
+                          ),
+                        ),
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           width: 55,
                           height: 27,
                           decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFF113F67)),
+                            border: Border.all(color: AppColors.primary),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Image.asset("assets/icons/rent_icon.png"),
@@ -451,14 +421,12 @@ class _AccPageState extends State<AccPage> {
     );
   }
 
-  Widget _buildPlaceholder() {
-    return Container(
-      width: 140,
-      height: 90,
-      color: Colors.grey[200],
-      child: const Center(
-        child: Icon(Icons.image_not_supported, color: Colors.grey),
-      ),
-    );
-  }
+  Widget _buildPlaceholder() => Container(
+    width: 140,
+    height: 90,
+    color: Colors.grey[200],
+    child: const Center(
+      child: Icon(Icons.image_not_supported, color: Colors.grey),
+    ),
+  );
 }

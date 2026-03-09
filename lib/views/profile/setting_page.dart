@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rentals/views/auth/login_page.dart';
 
-import 'package:rentals/views/profile/edit_profile.dart'; // Required import added
-import 'package:rentals/views/settings/help_support.dart';
-import 'package:rentals/views/settings/feedback_page.dart';
+import '../../core/constants/app_colors.dart';
+import '../auth/login_page.dart';
+import 'edit_profile.dart';
+import '../settings/help_support.dart';
+import '../settings/feedback_page.dart';
 
 class SettingPage extends StatelessWidget {
   const SettingPage({super.key});
 
-  // --- LOGOUT LOGIC ---
   Future<void> _handleLogout(BuildContext context) async {
     final bool? confirmLogout = await showDialog<bool>(
       context: context,
@@ -39,12 +39,11 @@ class SettingPage extends StatelessWidget {
 
     if (confirmLogout == true) {
       await FirebaseAuth.instance.signOut();
-
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
+          (route) => false,
         );
       }
     }
@@ -59,7 +58,7 @@ class SettingPage extends StatelessWidget {
       child: Container(
         height: double.infinity,
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(25),
             bottomLeft: Radius.circular(25),
@@ -70,7 +69,6 @@ class SettingPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Row(
@@ -86,7 +84,7 @@ class SettingPage extends StatelessWidget {
                     const Text(
                       'Settings',
                       style: TextStyle(
-                        color: Color(0xFF113F67),
+                        color: AppColors.primary,
                         fontSize: 24,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w400,
@@ -96,7 +94,6 @@ class SettingPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 65),
-
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 25.0),
                 child: Text(
@@ -109,19 +106,14 @@ class SettingPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-
               _buildListItem(
                 context,
                 Image.asset('assets/icons/person_info.png', height: 14),
                 'Personal Information',
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditProfile(), // Removed const
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EditProfile()),
+                ),
               ),
               _buildListItem(
                 context,
@@ -135,9 +127,7 @@ class SettingPage extends StatelessWidget {
                 'CIBIL score',
                 () {},
               ),
-
               const SizedBox(height: 30),
-
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 25.0),
                 child: Text(
@@ -150,48 +140,34 @@ class SettingPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-
               _buildListItem(
                 context,
                 Image.asset('assets/icons/help_icon.png', height: 14),
                 'Help & Support',
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HelpSupport(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpSupport()),
+                ),
               ),
               _buildListItem(
                 context,
                 Image.asset('assets/icons/feedback_icon.png', height: 14),
                 'Send Feedback',
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FeedbackPage(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FeedbackPage()),
+                ),
               ),
-
               const SizedBox(height: 30),
-
               Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: GestureDetector(
                   onTap: () => _handleLogout(context),
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
                       color: const Color(0xFF91E2FB),
-                      border: Border.all(
-                        color: const Color(0xFF16BCE6),
-                        width: 1,
-                      ),
+                      border: Border.all(color: AppColors.secondary, width: 1),
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Row(
@@ -202,7 +178,7 @@ class SettingPage extends StatelessWidget {
                         const Text(
                           'Log Out',
                           style: TextStyle(
-                            color: Color(0xFF113F67),
+                            color: AppColors.primary,
                             fontSize: 14,
                             fontFamily: 'Anta',
                             fontWeight: FontWeight.w600,
@@ -230,8 +206,8 @@ class SettingPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 7.0),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFF16BCE6), width: 1),
+          color: AppColors.white,
+          border: Border.all(color: AppColors.secondary, width: 1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: ListTile(
@@ -240,7 +216,7 @@ class SettingPage extends StatelessWidget {
           title: Text(
             title,
             style: const TextStyle(
-              color: Color(0xFF113F67),
+              color: AppColors.primary,
               fontSize: 13,
               fontFamily: 'Anta',
             ),
