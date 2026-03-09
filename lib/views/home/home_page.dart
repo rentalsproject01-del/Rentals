@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/views/map/map_page.dart';
 import 'near_me_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:async';
+import 'package:rentals/services/rental_service.dart';
 
 // --- GLOBAL LIKE LIST ---
-// This stores the liked items so the LikePage can access them.
 List<Map<String, dynamic>> globalLikedItems = [];
 
 class HomePage extends StatefulWidget {
@@ -17,91 +19,27 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<String> _searchHints = [
-    "Camera",
-    "Speaker",
-    "Book",
-    "Jacket",
-    "Sneaker",
-    "Necklace",
-    "PS5",
-    "Subscription",
-  ];
-
-  int _currentHintIndex = 0;
-  String _displayedText = "";
-  int _charIndex = 0;
-  bool _isDeleting = false;
-  Timer? _typingTimer;
-
   final PageController _offerController = PageController();
   int _currentOfferIndex = 0;
   Timer? _offerTimer;
 
-  final List<String> _offerImages = [
+  final List<String> _offerImages = const [
     'assets/images/offer1.png',
     'assets/images/offer2.png',
     'assets/images/offer3.png',
   ];
 
-  late Stream<QuerySnapshot> _rentalsStream;
-
   @override
   void initState() {
     super.initState();
-
-    _rentalsStream = FirebaseFirestore.instance
-        .collection('rentals')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-
-    _startTyping();
     _startOfferTimer();
   }
 
   @override
   void dispose() {
-    _typingTimer?.cancel();
     _offerTimer?.cancel();
     _offerController.dispose();
     super.dispose();
-  }
-
-  void _startTyping() {
-    const typingSpeed = Duration(milliseconds: 150);
-    const deleteSpeed = Duration(milliseconds: 100);
-    const pauseDuration = Duration(seconds: 2);
-
-    _typingTimer = Timer.periodic(_isDeleting ? deleteSpeed : typingSpeed, (
-      timer,
-    ) {
-      if (!mounted) return;
-
-      final currentFullText = _searchHints[_currentHintIndex];
-
-      setState(() {
-        if (!_isDeleting) {
-          if (_charIndex < currentFullText.length) {
-            _charIndex++;
-            _displayedText = currentFullText.substring(0, _charIndex);
-          } else {
-            _isDeleting = true;
-            _typingTimer?.cancel();
-            Future.delayed(pauseDuration, _startTyping);
-          }
-        } else {
-          if (_charIndex > 0) {
-            _charIndex--;
-            _displayedText = currentFullText.substring(0, _charIndex);
-          } else {
-            _isDeleting = false;
-            _currentHintIndex = (_currentHintIndex + 1) % _searchHints.length;
-            _typingTimer?.cancel();
-            Future.delayed(const Duration(milliseconds: 500), _startTyping);
-          }
-        }
-      });
-    });
   }
 
   void _startOfferTimer() {
@@ -134,7 +72,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildTopHeader(),
                 const SizedBox(height: 12),
-                _buildSearchBar(),
+                const AnimatedSearchBar(),
                 const SizedBox(height: 12),
                 _buildCategoryList(),
               ],
@@ -168,19 +106,33 @@ class _HomePageState extends State<HomePage> {
                     _buildSectionTitle("Top Deals"),
 
                     StreamBuilder<QuerySnapshot>(
-                      stream: _rentalsStream,
+                      stream: RentalService.getAllRentals(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF113F67),
+                              ),
+                            ),
                           );
                         }
 
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                           return const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(child: Text("No rentals available")),
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Center(
+                              child: Text(
+                                "No items available yet",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
                           );
                         }
 
@@ -189,12 +141,14 @@ class _HomePageState extends State<HomePage> {
                         return GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          cacheExtent:
+                              800, // Preloads items off-screen for smooth scrolling
                           itemCount: items.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: 0.75,
+                                childAspectRatio: 0.72,
                                 mainAxisSpacing: 15,
                                 crossAxisSpacing: 15,
                               ),
@@ -250,50 +204,6 @@ class _HomePageState extends State<HomePage> {
           height: 24,
           width: 24,
         ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: Row(
-              children: [
-                Image.asset("assets/icons/search_icon.png", height: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    cursorColor: const Color(0xFF113F67),
-                    style: const TextStyle(
-                      color: Color(0xFF113F67),
-                      fontSize: 16,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: _displayedText,
-                      hintStyle: const TextStyle(
-                        color: Color(0xFF113F67),
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 20),
-        Image.asset("assets/icons/cart_icon.png", height: 24, width: 24),
       ],
     );
   }
@@ -380,7 +290,6 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- STYLED BUTTON FOR "NEAR ME" ---
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -433,7 +342,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            // --- EXISTING GESTURE DETECTOR FOR MAP PAGE NAVIGATION ---
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -527,125 +435,151 @@ class _HomePageState extends State<HomePage> {
       imageUrl = deal['imageUrls'][0];
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFF113F67).withOpacity(0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 10, 8, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: imageUrl.isNotEmpty
-                        ? Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            height: 100,
-                            width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  height: 100,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
-                                    Icons.broken_image,
-                                    color: Colors.grey,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductPage(productData: deal),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFF113F67).withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: imageUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              height: 100,
+                              width: double.infinity,
+                              placeholder: (context, url) => Container(
+                                height: 100,
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF16BCE6),
                                   ),
                                 ),
-                          )
-                        : Container(
-                            height: 100,
-                            color: Colors.grey[200],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                height: 100,
+                                color: Colors.grey[200],
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                  ),
-                  Positioned(
-                    top: 7,
-                    right: 7,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF113F67).withOpacity(0.85),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: AnimatedLikeButton(deal: deal),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF113F67).withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: AnimatedLikeButton(deal: deal),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 2, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        deal['title'] ?? '',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                          color: Color(0xFF113F67),
+
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          deal['title'] ?? 'Unknown Item',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: Color(0xFF113F67),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        deal['subTitle'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "Rs. ${deal['price'] ?? ''}",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                          color: Color(0xFF113F67),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ProductPage(productData: deal),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person,
+                              size: 12,
+                              color: Colors.grey,
                             ),
-                          );
-                        },
-                        child: Container(
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                deal['ownerName'] ?? 'Unknown Owner',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          "Rs. ${deal['price'] ?? '0'}",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            color: Color(0xFF113F67),
+                          ),
+                        ),
+                        Container(
                           padding: const EdgeInsets.all(4),
-                          width: 50,
-                          height: 30,
+                          width: 38,
+                          height: 26,
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: const Color(0xFF113F67),
@@ -656,34 +590,37 @@ class _HomePageState extends State<HomePage> {
                           child: Center(
                             child: Image.asset(
                               "assets/icons/rent_icon.png",
+                              height: 12,
+                              width: 12,
+                              color: const Color(0xFF113F67),
                               errorBuilder: (c, e, s) => const Icon(
                                 Icons.arrow_forward_rounded,
                                 color: Color(0xFF113F67),
-                                size: 16,
+                                size: 12,
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 22, bottom: 7, top: 10),
+      padding: const EdgeInsets.only(left: 22, bottom: 12, top: 10),
       child: Text(
         title,
         style: const TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.bold,
           color: Color(0xFF113F67),
         ),
       ),
@@ -691,7 +628,116 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// --- NEW STATEFUL WIDGET FOR LIKE ANIMATION ---
+class AnimatedSearchBar extends StatefulWidget {
+  const AnimatedSearchBar({super.key});
+
+  @override
+  State<AnimatedSearchBar> createState() => _AnimatedSearchBarState();
+}
+
+class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
+  final List<String> _searchHints = const [
+    "Camera",
+    "Speaker",
+    "Book",
+    "Jacket",
+    "Sneaker",
+    "Necklace",
+    "PS5",
+    "Subscription",
+  ];
+
+  int _currentHintIndex = 0;
+  String _displayedText = "";
+  int _charIndex = 0;
+  bool _isDeleting = false;
+  Timer? _typingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTyping();
+  }
+
+  @override
+  void dispose() {
+    _typingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTyping() {
+    const typingSpeed = Duration(milliseconds: 150);
+    const deleteSpeed = Duration(milliseconds: 100);
+    const pauseDuration = Duration(seconds: 2);
+
+    _typingTimer = Timer.periodic(_isDeleting ? deleteSpeed : typingSpeed, (
+      timer,
+    ) {
+      if (!mounted) return;
+
+      final currentFullText = _searchHints[_currentHintIndex];
+
+      setState(() {
+        if (!_isDeleting) {
+          if (_charIndex < currentFullText.length) {
+            _charIndex++;
+            _displayedText = currentFullText.substring(0, _charIndex);
+          } else {
+            _isDeleting = true;
+            _typingTimer?.cancel();
+            Future.delayed(pauseDuration, _startTyping);
+          }
+        } else {
+          if (_charIndex > 0) {
+            _charIndex--;
+            _displayedText = currentFullText.substring(0, _charIndex);
+          } else {
+            _isDeleting = false;
+            _currentHintIndex = (_currentHintIndex + 1) % _searchHints.length;
+            _typingTimer?.cancel();
+            Future.delayed(const Duration(milliseconds: 500), _startTyping);
+          }
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Row(
+              children: [
+                Image.asset("assets/icons/search_icon.png", height: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _displayedText,
+                    style: const TextStyle(
+                      color: Color(0xFF113F67),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        Image.asset("assets/icons/cart_icon.png", height: 24, width: 24),
+      ],
+    );
+  }
+}
+
 class AnimatedLikeButton extends StatefulWidget {
   final Map<String, dynamic> deal;
   const AnimatedLikeButton({super.key, required this.deal});

@@ -1,32 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Required for the blur effect
+import 'dart:ui';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/services/transaction_service.dart';
+import 'package:rentals/models/transaction_model.dart';
 
-// --- 1. DATA MODELS ---
-// Note: Consider moving these to lib/models/rental_models.dart in the future
-class RentItem {
-  final String hostName, itemName, status, date, image;
-  RentItem({
-    required this.hostName,
-    required this.itemName,
-    required this.status,
-    required this.date,
-    required this.image,
-  });
-}
-
-class HostItem {
-  final String name, email, date, profileImg, itemImg; // Added email field
-  HostItem({
-    required this.name,
-    required this.email,
-    required this.date,
-    required this.profileImg,
-    required this.itemImg,
-  });
-}
-
-// --- 2. MAIN PAGE ---
 class MyrentPage extends StatefulWidget {
   const MyrentPage({super.key});
 
@@ -41,92 +18,30 @@ class _MyrentPageState extends State<MyrentPage> {
   final Color secondaryBlue = const Color(0xFF16BCE6);
   final Color lightGrey = const Color(0xFFE9E4E4);
 
-  final List<RentItem> rentList = [
-    RentItem(
-      hostName: "Aarti mahajan",
-      itemName: "The Rose Gold Jewelry",
-      status: "Your request has been accepted",
-      date: "Thursday, 2nd Jan",
-      image: "assets/images/jwellery.png",
-    ),
-    RentItem(
-      hostName: "Palash inamdar",
-      itemName: "Zara Tied Bicycle",
-      status: "Your request has been accepted",
-      date: "Friday, 11th Jan",
-      image: "assets/images/cycle_img.png",
-    ),
-    RentItem(
-      hostName: "John Doe",
-      itemName: "CRYPTO Running shoes",
-      status: "Your request has been accepted",
-      date: "Sunday, 15th Jan",
-      image: "assets/images/sneaker_img.png",
-    ),
-    RentItem(
-      hostName: "Jasmin Agrwal",
-      itemName: "Party wear women Dress",
-      status: "Your request has been accepted",
-      date: "Sunday, 15th Jan",
-      image: "assets/images/dress_img.png",
-    ),
-  ];
+  // --- PROFILE CARD DIALOG ---
+  void _showProfileCard(BuildContext context, TransactionModel transaction) {
+    String profileImg = transaction.renterImage;
+    String name = transaction.renterName;
+    String email = transaction.renterEmail;
 
-  final List<HostItem> hostList = [
-    HostItem(
-      name: "Aarti mahajan",
-      email: "aarti_mahajan@gmail.com",
-      date: "Thursday, 2nd Jan",
-      profileImg: "assets/images/profile_img2.png",
-      itemImg: "assets/images/book_img2.png",
-    ),
-    HostItem(
-      name: "Rushi Sing",
-      email: "rushi_sing@gmail.com",
-      date: "Friday, 11th Jan",
-      profileImg: "assets/images/profile_img3.png",
-      itemImg: "assets/images/bike_img.png",
-    ),
-    HostItem(
-      name: "Shreya joshi",
-      email: "shreya_joshi@gmail.com",
-      date: "Sunday, 18th Jan",
-      profileImg: "assets/images/profile_img4.png",
-      itemImg: "assets/images/jacket_img.png",
-    ),
-    HostItem(
-      name: "Pranav patil",
-      email: "pranav_patil@gmail.com",
-      date: "Thursday, 1 Feb",
-      profileImg: "assets/images/profile_img5.png",
-      itemImg: "assets/images/camera_img.png",
-    ),
-  ];
-
-  // --- NEW FEATURE: PROFILE CARD DIALOG ---
-  void _showProfileCard(BuildContext context, HostItem item) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.2), // Dim background slightly
+      barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) {
         return BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 5,
-            sigmaY: 5,
-          ), // Animation Blur Effect
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 40),
             child: Container(
               height: 420,
               decoration: BoxDecoration(
-                color: const Color(0xFF81A9CC), // Profile card blue color
+                color: const Color(0xFF81A9CC),
                 borderRadius: BorderRadius.circular(35),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Profile Avatar with Logo
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
@@ -135,7 +50,17 @@ class _MyrentPageState extends State<MyrentPage> {
                         backgroundColor: Colors.white24,
                         child: CircleAvatar(
                           radius: 62,
-                          backgroundImage: AssetImage(item.profileImg),
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage: profileImg.isNotEmpty
+                              ? NetworkImage(profileImg)
+                              : null,
+                          child: profileImg.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.grey,
+                                )
+                              : null,
                         ),
                       ),
                       Padding(
@@ -155,7 +80,7 @@ class _MyrentPageState extends State<MyrentPage> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    item.name,
+                    name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -163,7 +88,7 @@ class _MyrentPageState extends State<MyrentPage> {
                     ),
                   ),
                   Text(
-                    item.email, // Dynamic email data
+                    email,
                     style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
@@ -176,8 +101,6 @@ class _MyrentPageState extends State<MyrentPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // View Account Button
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
@@ -192,10 +115,7 @@ class _MyrentPageState extends State<MyrentPage> {
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Bottom Icons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -331,163 +251,227 @@ class _MyrentPageState extends State<MyrentPage> {
   }
 
   Widget _buildRentList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: rentList.length,
-      itemBuilder: (context, index) {
-        final item = rentList[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProductPage(
-                  productData: {
-                    'title': item.itemName,
-                    'price': '500', // Placeholder
-                    'imageUrls': [item.image],
-                  },
+    return StreamBuilder<List<TransactionModel>>(
+      stream: TransactionService.getUserRents(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: primaryBlue));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              "You are not renting any items currently.",
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        final transactions = snapshot.data!;
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: transactions.length,
+          itemBuilder: (context, index) {
+            final transaction = transactions[index];
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProductPage(
+                      productData: {
+                        'title': transaction.itemName,
+                        'price': transaction.price,
+                        'imageUrls': transaction.itemImage.isNotEmpty
+                            ? [transaction.itemImage]
+                            : [],
+                      },
+                    ),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: transaction.itemImage.isNotEmpty
+                          ? Image.network(
+                              transaction.itemImage,
+                              width: 150,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildPlaceholderImage(150, 100),
+                            )
+                          : _buildPlaceholderImage(150, 100),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            transaction.hostName,
+                            style: TextStyle(
+                              color: primaryBlue,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            transaction.itemName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            transaction.status,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            transaction.date,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Image.asset(
-                    item.image,
-                    width: 150,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 150,
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.hostName,
-                        style: TextStyle(
-                          color: primaryBlue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        item.itemName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        item.status,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.date,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
   }
 
   Widget _buildHostList() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: hostList.length,
-      itemBuilder: (context, index) {
-        final item = hostList[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 27),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 38,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: AssetImage(item.profileImg),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: TextStyle(
-                        color: primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    ElevatedButton(
-                      onPressed: () => _showProfileCard(context, item),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: secondaryBlue,
-                        minimumSize: const Size(100, 25),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: const Text(
-                        'View Profile',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ),
-                    Text(
-                      item.date,
-                      style: const TextStyle(color: Colors.grey, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  item.itemImg,
-                  width: 110,
-                  height: 70,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 110,
-                    height: 70,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.shopping_bag),
+    return StreamBuilder<List<TransactionModel>>(
+      stream: TransactionService.getUserHosts(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: primaryBlue));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              "No requests to host your items yet.",
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        final transactions = snapshot.data!;
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: transactions.length,
+          itemBuilder: (context, index) {
+            final transaction = transactions[index];
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 27),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 38,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: transaction.renterImage.isNotEmpty
+                        ? NetworkImage(transaction.renterImage)
+                        : null,
+                    child: transaction.renterImage.isEmpty
+                        ? const Icon(Icons.person, color: Colors.grey)
+                        : null,
                   ),
-                ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          transaction.renterName,
+                          style: TextStyle(
+                            color: primaryBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 5),
+                        ElevatedButton(
+                          onPressed: () =>
+                              _showProfileCard(context, transaction),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: secondaryBlue,
+                            minimumSize: const Size(100, 25),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Text(
+                            'View Profile',
+                            style: TextStyle(color: Colors.white, fontSize: 11),
+                          ),
+                        ),
+                        Text(
+                          transaction.date,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: transaction.itemImage.isNotEmpty
+                        ? Image.network(
+                            transaction.itemImage,
+                            width: 110,
+                            height: 70,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholderImage(110, 70),
+                          )
+                        : _buildPlaceholderImage(110, 70),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _buildPlaceholderImage(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey[300],
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
     );
   }
 }

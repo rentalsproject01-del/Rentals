@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/services/rental_service.dart';
+import 'package:rentals/services/user_service.dart';
 import 'home_page.dart'; // Imports your AnimatedLikeButton
 
 class NearMePage extends StatefulWidget {
@@ -31,6 +33,16 @@ class _NearMePageState extends State<NearMePage> {
       _isFetchingLocation = true;
       _locationError = '';
     });
+
+    // --- CHECK CACHE FIRST ---
+    if (UserService.currentLat != null && UserService.currentLng != null) {
+      setState(() {
+        _userLat = UserService.currentLat;
+        _userLng = UserService.currentLng;
+        _isFetchingLocation = false;
+      });
+      return; // Skip GPS if cached
+    }
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -63,6 +75,11 @@ class _NearMePageState extends State<NearMePage> {
       }
 
       Position position = await Geolocator.getCurrentPosition();
+
+      // --- STORE IN CACHE ---
+      UserService.currentLat = position.latitude;
+      UserService.currentLng = position.longitude;
+
       setState(() {
         _userLat = position.latitude;
         _userLng = position.longitude;
@@ -202,8 +219,9 @@ class _NearMePageState extends State<NearMePage> {
       );
     }
 
+    // --- USING SERVICE INSTEAD OF DIRECT QUERY ---
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('rentals').snapshots(),
+      stream: RentalService.getNearbyCandidates(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

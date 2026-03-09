@@ -1,11 +1,13 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-// --- COMPLETELY FIXED IMPORTS (Relative Paths) ---
-import '../product/product_page.dart';
-import 'like_page.dart';
-import 'edit_profile.dart';
+import 'package:rentals/views/profile/setting_page.dart';
+import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/profile/like_page.dart';
+import 'package:rentals/views/profile/edit_profile.dart'; // Required import added
+import 'package:rentals/services/user_service.dart';
+import 'package:rentals/services/transaction_service.dart';
+import 'package:rentals/models/transaction_model.dart';
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -15,59 +17,14 @@ class AccPage extends StatefulWidget {
 }
 
 class _AccPageState extends State<AccPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool isHostView = true;
-
-  final List<Map<String, String>> hostList = [
-    {
-      'title': 'The Design of Everyday Things',
-      'subtitle': 'author Don Norman',
-      'rating': '3.7',
-      'price': 'Rs.',
-      'image': 'assets/images/book_img.png',
-    },
-    {
-      'title': 'Zara Tied Satin Effect Front Blazer',
-      'subtitle': 'Hot Pink Jacket & Coat',
-      'rating': '4.7',
-      'price': 'Rs.',
-      'image': 'assets/images/jacket_img.png',
-    },
-    {
-      'title': 'Sony Camera',
-      'subtitle': 'a7 | Mirrorless',
-      'rating': '3.3',
-      'price': 'Rs.',
-      'image': 'assets/images/camera_img.png',
-    },
-  ];
-
-  final List<Map<String, String>> rentList = [
-    {
-      'title': 'The Rose Gold Jewellery',
-      'subtitle': 'Bracelet | Neckless | Earrings | Rings',
-      'rating': '3.7',
-      'price': 'Rs.',
-      'image': 'assets/images/jwellery.png',
-    },
-    {
-      'title': 'Zara Tied Satin Effect Front Blazer',
-      'subtitle': 'Hot Pink Jacket & Coat',
-      'rating': '4.7',
-      'price': 'Rs.',
-      'image': 'assets/images/cycle_img.png',
-    },
-    {
-      'title': 'white Sneakers',
-      'subtitle': 'Sneaker',
-      'rating': '3.3',
-      'price': 'Rs.',
-      'image': 'assets/images/sneaker_img.png',
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      endDrawer: const SettingPage(),
       backgroundColor: const Color(0xFF113F67),
       body: Column(
         children: [
@@ -87,20 +44,9 @@ class _AccPageState extends State<AccPage> {
                   _buildToggleTab(),
                   const Divider(height: 1, color: Color(0xFF6F7172)),
                   Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.only(top: 10, bottom: 20),
-                      itemCount: isHostView ? hostList.length : rentList.length,
-                      separatorBuilder: (context, index) => const Divider(
-                        color: Color(0xFF9FA1A2),
-                        thickness: 1.5,
-                      ),
-                      itemBuilder: (context, index) {
-                        final item = isHostView
-                            ? hostList[index]
-                            : rentList[index];
-                        return _buildListItem(item);
-                      },
-                    ),
+                    child: isHostView
+                        ? _buildDynamicList(true)
+                        : _buildDynamicList(false),
                   ),
                   const SizedBox(height: 85),
                 ],
@@ -116,13 +62,7 @@ class _AccPageState extends State<AccPage> {
     double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
-      // --- KEPT YOUR FRIEND's PADDING FIX HERE ---
-      padding: EdgeInsets.fromLTRB(
-        20,
-        topPadding + 10,
-        20,
-        25,
-      ), // 15 is the only gap below CIBIL
+      padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 25),
       child: Column(
         children: [
           Row(
@@ -160,66 +100,116 @@ class _AccPageState extends State<AccPage> {
                     ),
                   ),
                   const SizedBox(width: 20),
-                  Image.asset(
-                    'assets/icons/menu_icon.png',
-                    height: 18,
-                    width: 18,
+                  GestureDetector(
+                    onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+                    child: Image.asset(
+                      'assets/icons/menu_icon.png',
+                      height: 18,
+                      width: 18,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Stack(
-            children: [
-              const CircleAvatar(
-                radius: 50,
-                backgroundImage: AssetImage('assets/images/profile_img.png'),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EditProfile(),
+
+          StreamBuilder<Map<String, dynamic>?>(
+            stream: UserService.getUserProfileStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(color: Color(0xFF16BCE6)),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return const Text(
+                  "Error loading profile",
+                  style: TextStyle(color: Colors.redAccent),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data == null) {
+                return const Text(
+                  "Profile not found",
+                  style: TextStyle(color: Colors.white),
+                );
+              }
+
+              var userData = snapshot.data!;
+              String name = userData['name'] ?? 'Unknown User';
+              String email = userData['email'] ?? 'No email';
+              String profileImg = userData['profileImageUrl'] ?? '';
+
+              return Column(
+                children: [
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.grey[300],
+                        backgroundImage: profileImg.isNotEmpty
+                            ? NetworkImage(profileImg)
+                            : null,
+                        child: profileImg.isEmpty
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.grey,
+                              )
+                            : null,
                       ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF16BCE6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/icons/edit_icon.png',
-                      height: 12,
-                      width: 12,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    EditProfile(), // Removed const
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF16BCE6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Image.asset(
+                              'assets/icons/edit_icon.png',
+                              height: 12,
+                              width: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontFamily: 'Asap',
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Nancy Max Wheeler',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontFamily: 'Asap',
-            ),
-          ),
-          const Text(
-            'nancy_wheeler@gmail.com',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const Text(
-            '70 % CIBIL Score',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+                  Text(
+                    email,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  const Text(
+                    '70 % CIBIL Score',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -295,7 +285,54 @@ class _AccPageState extends State<AccPage> {
     );
   }
 
-  Widget _buildListItem(Map<String, String> item) {
+  Widget _buildDynamicList(bool isHost) {
+    return StreamBuilder<List<TransactionModel>>(
+      stream: isHost
+          ? TransactionService.getUserHosts()
+          : TransactionService.getUserRents(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF113F67)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              "Error loading transactions.",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(
+            child: Text(
+              isHost ? "No items hosted yet." : "No items rented yet.",
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        final items = snapshot.data!;
+
+        return ListView.separated(
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
+          itemCount: items.length,
+          separatorBuilder: (context, index) =>
+              const Divider(color: Color(0xFF9FA1A2), thickness: 1.5),
+          itemBuilder: (context, index) {
+            return _buildListItem(items[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildListItem(TransactionModel item) {
+    String ratingText = item.rating != null ? item.rating.toString() : '-';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -303,12 +340,16 @@ class _AccPageState extends State<AccPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(15),
-            child: Image.asset(
-              item['image']!,
-              width: 140,
-              height: 90,
-              fit: BoxFit.cover,
-            ),
+            child: item.itemImage.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: item.itemImage,
+                    width: 140,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => _buildPlaceholder(),
+                    errorWidget: (context, url, error) => _buildPlaceholder(),
+                  )
+                : _buildPlaceholder(),
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -316,14 +357,16 @@ class _AccPageState extends State<AccPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['title']!,
+                  item.itemName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  item['subtitle']!,
+                  item.date,
                   style: const TextStyle(color: Colors.grey, fontSize: 11),
                 ),
                 const SizedBox(height: 5),
@@ -340,7 +383,7 @@ class _AccPageState extends State<AccPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${item['rating']} ',
+                        '$ratingText ',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -359,7 +402,7 @@ class _AccPageState extends State<AccPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      item['price']!,
+                      'Rs. ${item.price}',
                       style: const TextStyle(
                         color: Color(0xFF113F67),
                         fontWeight: FontWeight.bold,
@@ -369,10 +412,21 @@ class _AccPageState extends State<AccPage> {
                     if (!isHostView)
                       GestureDetector(
                         onTap: () {
+                          final productMap = {
+                            'title': item.itemName,
+                            'price': item.price,
+                            'imageUrls': item.itemImage.isNotEmpty
+                                ? [item.itemImage]
+                                : [],
+                            'ownerId': item.hostId,
+                            'id': item.rentalId,
+                          };
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ProductPage(),
+                              builder: (context) =>
+                                  ProductPage(productData: productMap),
                             ),
                           );
                         },
@@ -393,6 +447,17 @@ class _AccPageState extends State<AccPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 140,
+      height: 90,
+      color: Colors.grey[200],
+      child: const Center(
+        child: Icon(Icons.image_not_supported, color: Colors.grey),
       ),
     );
   }

@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:rentals/widgets/navbar.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
+import 'package:rentals/services/user_service.dart';
 
 class AccountSetupPage extends StatefulWidget {
   const AccountSetupPage({super.key});
@@ -184,19 +184,17 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         print("Image uploaded successfully: $imageUrl");
       }
 
-      // 4. Save to Firestore
-      print("Saving profile to Firestore...");
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'name': nameController.text.trim(),
-        'email': user.email, // Using exact FirebaseAuth email
-        'phone': phone,
-        'latitude': _latitude,
-        'longitude': _longitude,
-        'profileImageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      print("Firestore save complete.");
+      // 4. Save to Firestore using UserService
+      print("Saving profile using UserService...");
+      await UserService.createUserProfile(
+        name: nameController.text.trim(),
+        email: user.email ?? "",
+        phone: phone,
+        latitude: _latitude!,
+        longitude: _longitude!,
+        profileImageUrl: imageUrl,
+      );
+      print("Profile save complete.");
 
       // Optional: Update Firebase Auth Display Name
       await user.updateDisplayName(nameController.text.trim());
@@ -210,8 +208,8 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         );
       }
     } catch (e) {
-      print("FIREBASE ERROR: $e");
-      _showError("Failed to save profile: $e");
+      print("ERROR: $e");
+      _showError(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
