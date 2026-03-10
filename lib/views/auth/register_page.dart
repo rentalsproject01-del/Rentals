@@ -58,7 +58,8 @@ class _RegisterPageState extends State<RegisterPage> {
       await userCredential.user?.updateDisplayName(_nameController.text.trim());
 
       // Because of the AuthGate in main.dart, Firebase will automatically
-      // detect this new user and navigate them straight to the Navbar!
+      // detect this new user. Since their Firestore profile does not exist yet,
+      // the AuthGate will route them to the AccountSetupPage to complete onboarding.
 
       // We just pop this screen off the navigation stack so it doesn't linger
       if (mounted) Navigator.pop(context);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rentals/core/utils/validators.dart';
 
 class RentForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
@@ -45,7 +46,11 @@ class RentForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTextField("Title", controller: titleController),
+          _buildTextField(
+            "Title",
+            controller: titleController,
+            customValidator: Validators.validateRequired,
+          ),
           const SizedBox(height: 20),
 
           _buildTextField(
@@ -78,13 +83,14 @@ class RentForm extends StatelessWidget {
                   "Price (Rs)",
                   controller: priceController,
                   isNumber: true,
+                  customValidator: Validators.validatePrice,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          categorySelector, // Embedded Category/Subcategory Dropdowns
+          categorySelector,
           const SizedBox(height: 20),
 
           _buildActionButtonField(
@@ -102,6 +108,7 @@ class RentForm extends StatelessWidget {
             controller: phoneController,
             isNumber: true,
             hint: "e.g. 9876543210",
+            customValidator: Validators.validatePhone,
           ),
           const SizedBox(height: 40),
 
@@ -161,17 +168,20 @@ class RentForm extends StatelessWidget {
     bool isRequired = true,
     String? hint,
     bool readOnly = false,
+    String? Function(String?)? customValidator,
   }) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      validator: isRequired
-          ? (value) {
-              if (value == null || value.trim().isEmpty) return 'Required';
-              return null;
-            }
-          : null,
+      validator:
+          customValidator ??
+          (isRequired
+              ? (value) {
+                  if (value == null || value.trim().isEmpty) return 'Required';
+                  return null;
+                }
+              : null),
       style: const TextStyle(color: Color(0xFF0D3454)),
       decoration: InputDecoration(
         labelText: label,
@@ -198,6 +208,10 @@ class RentForm extends StatelessWidget {
     return TextFormField(
       controller: controller,
       maxLines: 3,
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) return 'Required';
+        return null;
+      },
       style: const TextStyle(color: Color(0xFF0D3454)),
       decoration: InputDecoration(
         labelText: label,
@@ -260,6 +274,16 @@ class RentForm extends StatelessWidget {
             controller: controller,
             hint: hint,
             readOnly: true,
+            customValidator: (value) {
+              if (value == null ||
+                  value.trim().isEmpty ||
+                  value.contains("Detecting") ||
+                  value.contains("Failed") ||
+                  value.contains("Denied")) {
+                return 'Please select a valid location';
+              }
+              return null;
+            },
           ),
         ),
         const SizedBox(width: 15),

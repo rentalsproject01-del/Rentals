@@ -292,10 +292,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                     if (norm < 0) norm += 2 * math.pi;
 
                                     if (norm > math.pi * 0.9 &&
-                                        norm < math.pi * 1.1)
+                                        norm < math.pi * 1.1) {
                                       return const SizedBox.shrink();
-                                    if (norm > math.pi && norm < 2 * math.pi)
+                                    }
+                                    if (norm > math.pi && norm < 2 * math.pi) {
                                       return const SizedBox.shrink();
+                                    }
 
                                     bool isActive = actualIndex == activeIndex;
 

@@ -7,8 +7,9 @@ import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/views/map/map_page.dart';
 import 'near_me_page.dart';
 import 'package:rentals/services/rental_service.dart';
+import 'package:rentals/services/favorites_service.dart';
 
-// --- GLOBAL LIKE LIST ---
+// Kept for backward compatibility if any unedited file imports it.
 List<Map<String, dynamic>> globalLikedItems = [];
 
 class HomePage extends StatefulWidget {
@@ -105,8 +106,8 @@ class _HomePageState extends State<HomePage> {
 
                     _buildSectionTitle("Top Deals"),
 
-                    StreamBuilder<QuerySnapshot>(
-                      stream: RentalService.getAllRentals(),
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: RentalService.getAllRentalsWithOwnerNames(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -120,7 +121,7 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),
                             child: Center(
@@ -136,14 +137,13 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        final items = snapshot.data!.docs;
+                        final items = snapshot.data!;
 
                         return GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          cacheExtent:
-                              800, // Preloads items off-screen for smooth scrolling
+                          cacheExtent: 800,
                           itemCount: items.length,
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
@@ -153,8 +153,7 @@ class _HomePageState extends State<HomePage> {
                                 crossAxisSpacing: 15,
                               ),
                           itemBuilder: (context, index) {
-                            final data =
-                                items[index].data() as Map<String, dynamic>;
+                            final data = items[index];
                             return _buildDealCard(context, data);
                           },
                         );
@@ -431,8 +430,14 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildDealCard(BuildContext context, Map<String, dynamic> deal) {
     String imageUrl = '';
-    if (deal['imageUrls'] != null && (deal['imageUrls'] as List).isNotEmpty) {
-      imageUrl = deal['imageUrls'][0];
+
+    if (deal['imageUrls'] != null) {
+      if (deal['imageUrls'] is List && (deal['imageUrls'] as List).isNotEmpty) {
+        imageUrl = deal['imageUrls'][0].toString();
+      } else if (deal['imageUrls'] is String &&
+          (deal['imageUrls'] as String).isNotEmpty) {
+        imageUrl = deal['imageUrls'];
+      }
     }
 
     return GestureDetector(
@@ -530,7 +535,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          deal['title'] ?? 'Unknown Item',
+                          deal['title']?.toString() ?? 'Unknown Item',
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 15,
@@ -550,7 +555,8 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                deal['ownerName'] ?? 'Unknown Owner',
+                                deal['ownerName']?.toString() ??
+                                    'Unknown Owner',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey,
@@ -674,7 +680,6 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
       timer,
     ) {
       if (!mounted) return;
-
       final currentFullText = _searchHints[_currentHintIndex];
 
       setState(() {
@@ -738,51 +743,53 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
   }
 }
 
-class AnimatedLikeButton extends StatefulWidget {
+// --- UPDATED ANIMATED LIKE BUTTON ---
+class AnimatedLikeButton extends StatelessWidget {
   final Map<String, dynamic> deal;
   const AnimatedLikeButton({super.key, required this.deal});
 
   @override
-  State<AnimatedLikeButton> createState() => _AnimatedLikeButtonState();
-}
-
-class _AnimatedLikeButtonState extends State<AnimatedLikeButton> {
-  @override
   Widget build(BuildContext context) {
-    bool isLiked = globalLikedItems.any(
-      (item) => item['title'] == widget.deal['title'],
-    );
+    // Determine a stable ID for the stream
+    String rentalId = FavoritesService.getRentalId(deal);
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (isLiked) {
-            globalLikedItems.removeWhere(
-              (item) => item['title'] == widget.deal['title'],
-            );
-          } else {
-            globalLikedItems.add(widget.deal);
-          }
-        });
-      },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return ScaleTransition(scale: animation, child: child);
-        },
-        child: Image.asset(
-          isLiked
-              ? "assets/icons/like_icon3.png"
-              : "assets/icons/like_icon.png",
-          key: ValueKey<bool>(isLiked),
-          height: 14,
-          width: 14,
-          errorBuilder: (c, e, s) => Icon(
-            isLiked ? Icons.favorite : Icons.favorite_border_outlined,
-            size: 14,
+    return StreamBuilder<bool>(
+      stream: FavoritesService.isFavoriteStream(rentalId),
+      builder: (context, snapshot) {
+        bool isLiked = snapshot.data ?? false;
+
+        return GestureDetector(
+          onTap: () async {
+            if (rentalId.isEmpty || rentalId == 'unknown_id') return;
+            try {
+              await FavoritesService.toggleFavorite(deal);
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Failed to update favorites.")),
+              );
+            }
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return ScaleTransition(scale: animation, child: child);
+            },
+            child: Image.asset(
+              isLiked
+                  ? "assets/icons/like_icon3.png"
+                  : "assets/icons/like_icon.png",
+              key: ValueKey<bool>(isLiked),
+              height: 14,
+              width: 14,
+              errorBuilder: (c, e, s) => Icon(
+                isLiked ? Icons.favorite : Icons.favorite_border_outlined,
+                size: 14,
+                color: isLiked ? Colors.red : Colors.grey,
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

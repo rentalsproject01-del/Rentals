@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:rentals/widgets/navbar.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
 import 'package:rentals/services/user_service.dart';
+import 'package:rentals/core/utils/validators.dart';
 
 class AccountSetupPage extends StatefulWidget {
   const AccountSetupPage({super.key});
@@ -97,16 +98,13 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
   // --- PICK IMAGE ---
   Future<void> _pickImage(ImageSource source) async {
     try {
-      print("Opening image picker for source: $source");
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile != null) {
         setState(() {
           _imageFile = File(pickedFile.path);
         });
-        print("Image successfully selected.");
       }
     } catch (e) {
-      print("Error picking image: $e");
       _showError("Failed to pick image: $e");
     }
   }
@@ -133,14 +131,12 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         _longitude = pickedLocation.longitude;
         locationController.text = "Location Selected";
       });
-      print("Location selected: $_latitude, $_longitude");
     }
   }
 
   // --- SUBMIT LOGIC ---
   Future<void> _submit() async {
     FocusScope.of(context).unfocus(); // Drop keyboard safely
-    print("Submit button pressed.");
 
     // 1. Strict Validation Check
     if (nameController.text.trim().isEmpty) {
@@ -149,8 +145,9 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
     }
 
     final phone = phoneController.text.trim();
-    if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
-      _showError("Phone number must be exactly 10 digits");
+    final phoneError = Validators.validatePhone(phone);
+    if (phoneError != null) {
+      _showError(phoneError);
       return;
     }
 
@@ -174,18 +171,15 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
 
       // 3. Upload Image if selected
       if (_imageFile != null) {
-        print("Uploading image to Firebase Storage...");
         Reference ref = FirebaseStorage.instance.ref().child(
           'profile_images/${user.uid}.jpg',
         );
 
         await ref.putFile(_imageFile!);
         imageUrl = await ref.getDownloadURL();
-        print("Image uploaded successfully: $imageUrl");
       }
 
       // 4. Save to Firestore using UserService
-      print("Saving profile using UserService...");
       await UserService.createUserProfile(
         name: nameController.text.trim(),
         email: user.email ?? "",
@@ -194,21 +188,18 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         longitude: _longitude!,
         profileImageUrl: imageUrl,
       );
-      print("Profile save complete.");
 
       // Optional: Update Firebase Auth Display Name
       await user.updateDisplayName(nameController.text.trim());
 
       // 5. Navigate to Main App
       if (mounted) {
-        print("Setup complete. Navigating to Navbar.");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Navbar()),
         );
       }
     } catch (e) {
-      print("ERROR: $e");
       _showError(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 
 class MapPage extends StatefulWidget {
@@ -62,12 +63,23 @@ class _MapPageState extends State<MapPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(15),
                   child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
                           width: 90,
                           height: 90,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
+                          placeholder: (context, url) => Container(
+                            width: 90,
+                            height: 90,
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF16BCE6),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) =>
                               _buildPlaceholder(),
                         )
                       : _buildPlaceholder(),
@@ -244,10 +256,17 @@ class _MapPageState extends State<MapPage> {
                               ],
                             ),
                             child: ClipOval(
-                              child: Image.network(
-                                imageUrls[0],
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrls[0],
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
+                                placeholder: (context, url) => const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF16BCE6),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) {
                                   return const Icon(
                                     Icons.location_on,
                                     color: Colors.redAccent,

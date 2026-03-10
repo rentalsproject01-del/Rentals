@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RentalModel {
-  final String id;
+  final String? id;
   final String title;
   final String subtitle;
   final String description;
-  final double price;
   final double deposit;
+  final double price;
+  final String duration;
   final String category;
   final String subcategory;
   final String location;
@@ -14,16 +15,19 @@ class RentalModel {
   final double longitude;
   final String phoneNumber;
   final List<String> imageUrls;
-  final String userId;
+  final String ownerId;
+  final String ownerName;
+  final String ownerImage;
   final DateTime? createdAt;
 
   RentalModel({
-    required this.id,
+    this.id,
     required this.title,
     required this.subtitle,
     required this.description,
-    required this.price,
     required this.deposit,
+    required this.price,
+    required this.duration,
     required this.category,
     required this.subcategory,
     required this.location,
@@ -31,28 +35,41 @@ class RentalModel {
     required this.longitude,
     required this.phoneNumber,
     required this.imageUrls,
-    required this.userId,
+    required this.ownerId,
+    required this.ownerName,
+    required this.ownerImage,
     this.createdAt,
   });
 
-  factory RentalModel.fromMap(Map<String, dynamic> data, String documentId) {
+  factory RentalModel.fromMap(Map<String, dynamic> map, [String? documentId]) {
     return RentalModel(
       id: documentId,
-      title: data['title'] ?? '',
-      subtitle: data['subtitle'] ?? '',
-      description: data['description'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      deposit: (data['deposit'] ?? 0).toDouble(),
-      category: data['category'] ?? '',
-      subcategory: data['subcategory'] ?? '',
-      location: data['location'] ?? '',
-      latitude: (data['latitude'] ?? 0).toDouble(),
-      longitude: (data['longitude'] ?? 0).toDouble(),
-      phoneNumber: data['phoneNumber'] ?? '',
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      userId: data['userId'] ?? '',
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
+      title: map['title'] ?? '',
+      subtitle: map['subtitle'] ?? '',
+      description: map['description'] ?? '',
+      deposit: (map['deposit'] is num)
+          ? (map['deposit'] as num).toDouble()
+          : 0.0,
+      price: (map['price'] is num) ? (map['price'] as num).toDouble() : 0.0,
+      duration: map['duration'] ?? '',
+      category: map['category'] ?? '',
+      subcategory: map['subcategory'] ?? '',
+      location: map['location'] ?? '',
+      latitude: (map['latitude'] is num)
+          ? (map['latitude'] as num).toDouble()
+          : 0.0,
+      longitude: (map['longitude'] is num)
+          ? (map['longitude'] as num).toDouble()
+          : 0.0,
+      phoneNumber: map['phoneNumber'] ?? '',
+      imageUrls: map['imageUrls'] != null
+          ? List<String>.from(map['imageUrls'])
+          : [],
+      ownerId: map['ownerId'] ?? '',
+      ownerName: map['ownerName'] ?? '',
+      ownerImage: map['ownerImage'] ?? '',
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] as Timestamp).toDate()
           : null,
     );
   }
@@ -62,8 +79,9 @@ class RentalModel {
       'title': title,
       'subtitle': subtitle,
       'description': description,
-      'price': price,
       'deposit': deposit,
+      'price': price,
+      'duration': duration,
       'category': category,
       'subcategory': subcategory,
       'location': location,
@@ -71,7 +89,9 @@ class RentalModel {
       'longitude': longitude,
       'phoneNumber': phoneNumber,
       'imageUrls': imageUrls,
-      'userId': userId,
+      'ownerId': ownerId,
+      'ownerName': ownerName,
+      'ownerImage': ownerImage,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),

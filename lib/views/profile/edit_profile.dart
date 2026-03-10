@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rentals/services/user_service.dart';
+import 'package:rentals/core/utils/validators.dart';
 
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
@@ -86,19 +87,18 @@ class _EditProfileState extends State<EditProfile> {
   Future<void> _updateProfile() async {
     FocusScope.of(context).unfocus();
 
-    if (_nameController.text.trim().isEmpty ||
-        _phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Name and Phone cannot be empty.")),
-      );
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Name cannot be empty.")));
       return;
     }
 
-    // Added phone number regex validation
-    if (!RegExp(r'^\d{10}$').hasMatch(_phoneController.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Phone number must be exactly 10 digits")),
-      );
+    final phoneError = Validators.validatePhone(_phoneController.text.trim());
+    if (phoneError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(phoneError)));
       return;
     }
 

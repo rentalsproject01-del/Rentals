@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/user_service.dart';
@@ -301,8 +302,15 @@ class _NearMePageState extends State<NearMePage> {
   // Exact same card from HomePage, with an added Distance tag!
   Widget _buildDealCard(BuildContext context, Map<String, dynamic> deal) {
     String imageUrl = '';
-    if (deal['imageUrls'] != null && (deal['imageUrls'] as List).isNotEmpty) {
-      imageUrl = deal['imageUrls'][0];
+
+    // Safety check for dynamic lists from Firestore
+    if (deal['imageUrls'] != null) {
+      if (deal['imageUrls'] is List && (deal['imageUrls'] as List).isNotEmpty) {
+        imageUrl = deal['imageUrls'][0].toString();
+      } else if (deal['imageUrls'] is String &&
+          (deal['imageUrls'] as String).isNotEmpty) {
+        imageUrl = deal['imageUrls'];
+      }
     }
 
     double distance = deal['distance_away'] ?? 0.0;
@@ -325,20 +333,29 @@ class _NearMePageState extends State<NearMePage> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(15),
                     child: imageUrl.isNotEmpty
-                        ? Image.network(
-                            imageUrl,
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             height: 100,
                             width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  height: 100,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
-                                    Icons.broken_image,
-                                    color: Colors.grey,
-                                  ),
+                            placeholder: (context, url) => Container(
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF16BCE6),
                                 ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
+                            ),
                           )
                         : Container(
                             height: 100,
@@ -381,7 +398,7 @@ class _NearMePageState extends State<NearMePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        deal['title'] ?? '',
+                        deal['title']?.toString() ?? '',
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 16,

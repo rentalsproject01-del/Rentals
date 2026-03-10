@@ -8,7 +8,8 @@ class RentalService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // --- 1. Upload Rental ---
+  /// Uploads a new rental item, including its images to Firebase Storage,
+  /// and saves the document to Firestore.
   static Future<void> uploadRental({
     required String title,
     required String subtitle,
@@ -24,80 +25,67 @@ class RentalService {
     required String phoneNumber,
     required List<File> images,
   }) async {
-    try {
-      // 1. Get the current user UID
-      final User? user = _auth.currentUser;
-      if (user == null) {
-        throw Exception("User is not logged in. Cannot upload rental item.");
-      }
-
-      // 2. Fetch the user profile from 'users' collection
-      final DocumentSnapshot userDoc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (!userDoc.exists) {
-        throw Exception(
-          "User profile not found. Please complete account setup.",
-        );
-      }
-
-      final userData = userDoc.data() as Map<String, dynamic>;
-      final String ownerName = userData['name'] ?? 'Unknown User';
-      final String ownerImage = userData['profileImageUrl'] ?? '';
-
-      // 3. Create a new document reference first to generate a rentalId
-      final DocumentReference rentalDocRef = _firestore
-          .collection('rentals')
-          .doc();
-      final String rentalId = rentalDocRef.id;
-
-      // 4. Upload each image to Firebase Storage
-      List<String> imageUrls = [];
-      for (int i = 0; i < images.length; i++) {
-        try {
-          Reference ref = _storage.ref().child(
-            'rental_images/$rentalId/image_$i.jpg',
-          );
-
-          await ref.putFile(images[i]);
-          String downloadUrl = await ref.getDownloadURL();
-          imageUrls.add(downloadUrl);
-        } catch (e) {
-          throw Exception("Failed to upload image $i: $e");
-        }
-      }
-
-      // 5 & 6. Save the expanded rental document in Firestore
-      await rentalDocRef.set({
-        'title': title,
-        'subtitle': subtitle,
-        'description': description,
-        'deposit': deposit,
-        'price': price,
-        'duration': duration,
-        'category': category,
-        'subcategory': subcategory,
-        'location': location,
-        'latitude': latitude,
-        'longitude': longitude,
-        'phoneNumber': phoneNumber,
-        'ownerId': user.uid,
-        'ownerName': ownerName,
-        'ownerImage': ownerImage,
-        'imageUrls': imageUrls,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } on FirebaseException catch (e) {
-      throw Exception("Firestore/Storage error: ${e.message}");
-    } catch (e) {
-      // Re-throw previously caught custom exceptions or unexpected errors
-      throw Exception(e.toString());
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User is not authenticated.');
     }
+
+    final String uid = currentUser.uid;
+
+    // Fetch user profile to attach owner info to the rental document
+    final DocumentSnapshot userDoc = await _firestore
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    if (!userDoc.exists) {
+      throw Exception('User profile not found. Please complete profile setup.');
+    }
+
+    final Map<String, dynamic> userData =
+        userDoc.data() as Map<String, dynamic>;
+    final String ownerName = userData['name'] ?? 'Unknown User';
+    final String ownerImage = userData['profileImageUrl'] ?? '';
+
+    List<String> uploadedImageUrls = [];
+
+    // Upload images to Firebase Storage
+    if (images.isNotEmpty) {
+      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      for (int i = 0; i < images.length; i++) {
+        final File imageFile = images[i];
+        final String filePath = 'rentals/$uid/${timestamp}_$i.jpg';
+        final Reference ref = _storage.ref().child(filePath);
+
+        final TaskSnapshot uploadTask = await ref.putFile(imageFile);
+        final String downloadUrl = await uploadTask.ref.getDownloadURL();
+        uploadedImageUrls.add(downloadUrl);
+      }
+    }
+
+    // Save rental document to Firestore aligning with RentalModel schema
+    await _firestore.collection('rentals').add({
+      'title': title,
+      'subtitle': subtitle,
+      'description': description,
+      'deposit': deposit,
+      'price': price,
+      'duration': duration,
+      'category': category,
+      'subcategory': subcategory,
+      'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
+      'phoneNumber': phoneNumber,
+      'ownerId': uid,
+      'ownerName': ownerName,
+      'ownerImage': ownerImage,
+      'imageUrls': uploadedImageUrls,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
-  // --- 2. Get All Rentals ---
+  /// Retrieves a stream of all rentals for the general home feed.
   static Stream<QuerySnapshot> getAllRentals() {
     return _firestore
         .collection('rentals')
@@ -105,7 +93,60 @@ class RentalService {
         .snapshots();
   }
 
-  // --- 3. Get Rentals By User ---
+  /// Retrieves a stream of all rentals and fetches owner names from the users collection
+  /// if they are missing from the rental document.
+  static Stream<List<Map<String, dynamic>>> getAllRentalsWithOwnerNames() {
+    return _firestore
+        .collection('rentals')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .asyncMap((QuerySnapshot snapshot) async {
+          List<Map<String, dynamic>> enrichedRentals = [];
+
+          for (var doc in snapshot.docs) {
+            // Create a modifiable map from the document data
+            final data = Map<String, dynamic>.from(
+              doc.data() as Map<String, dynamic>,
+            );
+            data['id'] = doc.id; // Keep doc id for reference
+
+            String ownerName = data['ownerName']?.toString() ?? '';
+
+            // If ownerName is missing, try to resolve it using ownerId or hostId
+            if (ownerName.trim().isEmpty) {
+              String uploaderId =
+                  data['ownerId']?.toString() ??
+                  data['hostId']?.toString() ??
+                  '';
+
+              if (uploaderId.isNotEmpty) {
+                try {
+                  final userDoc = await _firestore
+                      .collection('users')
+                      .doc(uploaderId)
+                      .get();
+                  if (userDoc.exists && userDoc.data() != null) {
+                    final userData = userDoc.data() as Map<String, dynamic>;
+                    data['ownerName'] = userData['name'] ?? 'Unknown Owner';
+                  } else {
+                    data['ownerName'] = 'Unknown Owner';
+                  }
+                } catch (e) {
+                  data['ownerName'] = 'Unknown Owner';
+                }
+              } else {
+                data['ownerName'] = 'Unknown Owner';
+              }
+            }
+
+            enrichedRentals.add(data);
+          }
+
+          return enrichedRentals;
+        });
+  }
+
+  /// Retrieves a stream of rentals created by a specific user.
   static Stream<QuerySnapshot> getUserRentals(String uid) {
     return _firestore
         .collection('rentals')
@@ -113,12 +154,8 @@ class RentalService {
         .snapshots();
   }
 
-  // --- 4. Get Nearby Candidates (Limited Size) ---
+  /// Retrieves a stream of all rentals for client-side geospatial filtering.
   static Stream<QuerySnapshot> getNearbyCandidates() {
-    return _firestore
-        .collection('rentals')
-        .orderBy('createdAt', descending: true)
-        .limit(200) // Limits query size to prevent huge reads
-        .snapshots();
+    return _firestore.collection('rentals').snapshots();
   }
 }

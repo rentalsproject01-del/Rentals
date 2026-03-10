@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:rentals/services/chat_service.dart';
+import 'package:rentals/views/chat/chat_room_page.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -8,8 +12,304 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  String? currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    currentUserId = ChatService.getCurrentUserId();
+  }
+
+  /// Formats the Firestore Timestamp into a readable string
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+
+    final DateTime date = timestamp.toDate();
+    final DateTime now = DateTime.now();
+
+    // If it's today, show HH:MM
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
+      final String hour = date.hour.toString().padLeft(2, '0');
+      final String minute = date.minute.toString().padLeft(2, '0');
+      return '$hour:$minute';
+    }
+    // Otherwise show DD/MM
+    else {
+      final String day = date.day.toString().padLeft(2, '0');
+      final String month = date.month.toString().padLeft(2, '0');
+      return '$day/$month';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold();
+    return Scaffold(
+      backgroundColor: const Color(0xFF113F67), // Dark blue header background
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- HEADER ---
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              child: Text(
+                'Chats',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // --- MAIN CONTENT ---
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                  child: currentUserId == null
+                      ? const Center(
+                          child: Text(
+                            "Please log in to view your chats.",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                        )
+                      : _buildChatList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: ChatService.getUserChatRooms(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF113F67)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              "Something went wrong while loading chats.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text(
+              "No conversations yet.",
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+
+        return ListView.separated(
+          padding: const EdgeInsets.only(
+            top: 15,
+            bottom: 100,
+          ), // Padding for navbar
+          itemCount: docs.length,
+          separatorBuilder: (context, index) => Divider(
+            color: Colors.grey.shade200,
+            height: 1,
+            indent: 85,
+            endIndent: 20,
+          ),
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            return _buildChatTile(data);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildChatTile(Map<String, dynamic> data) {
+    // 1. Safely read fields
+    final String ownerId = data['ownerId']?.toString() ?? '';
+    final String ownerName = data['ownerName']?.toString() ?? 'Unknown Owner';
+    final String ownerImage = data['ownerImage']?.toString() ?? '';
+
+    final String renterId = data['renterId']?.toString() ?? '';
+    final String renterName =
+        data['renterName']?.toString() ?? 'Unknown Renter';
+    final String renterImage = data['renterImage']?.toString() ?? '';
+
+    final String itemTitle = data['itemTitle']?.toString() ?? 'Unknown Item';
+    final String itemImage = data['itemImage']?.toString() ?? '';
+    final String lastMessage = data['lastMessage']?.toString() ?? '';
+    final Timestamp? lastMessageTime = data['lastMessageTime'] as Timestamp?;
+    final String chatRoomId = data['chatRoomId']?.toString() ?? '';
+
+    // 2. Determine "Other User"
+    final bool isOwner = currentUserId == ownerId;
+    final String otherUserId = isOwner ? renterId : ownerId;
+    final String otherUserName = isOwner ? renterName : ownerName;
+    final String otherUserImage = isOwner ? renterImage : ownerImage;
+
+    return InkWell(
+      onTap: () {
+        if (chatRoomId.isEmpty || currentUserId == null) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatRoomPage(
+              chatRoomId: chatRoomId,
+              currentUserId: currentUserId!,
+              otherUserId: otherUserId,
+              otherUserName: otherUserName,
+              otherUserImage: otherUserImage,
+              itemTitle: itemTitle,
+              itemImage: itemImage,
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            // --- OTHER USER AVATAR ---
+            ClipOval(
+              child: otherUserImage.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: otherUserImage,
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => _buildAvatarPlaceholder(),
+                      errorWidget: (context, url, error) =>
+                          _buildAvatarPlaceholder(),
+                    )
+                  : _buildAvatarPlaceholder(),
+            ),
+            const SizedBox(width: 15),
+
+            // --- CHAT DETAILS ---
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          otherUserName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF113F67),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _formatTime(lastMessageTime),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    itemTitle,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF16BCE6),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    lastMessage.isNotEmpty
+                        ? lastMessage
+                        : 'Start the conversation',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: lastMessage.isNotEmpty
+                          ? Colors.black87
+                          : Colors.grey.shade400,
+                      fontStyle: lastMessage.isEmpty
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- OPTIONAL ITEM THUMBNAIL ---
+            if (itemImage.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: itemImage,
+                  width: 45,
+                  height: 45,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      Container(width: 45, height: 45, color: Colors.grey[200]),
+                  errorWidget: (context, url, error) => Container(
+                    width: 45,
+                    height: 45,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.image,
+                      size: 20,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarPlaceholder() {
+    return Container(
+      width: 52,
+      height: 52,
+      color: Colors.grey[200],
+      child: const Icon(Icons.person, color: Colors.grey, size: 26),
+    );
   }
 }
