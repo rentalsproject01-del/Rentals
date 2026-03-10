@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter/services.dart';
 
-// --- FIXED IMPORTS ---
 import 'package:rentals/views/home/home_page.dart';
 import 'package:rentals/views/chat/chat_page.dart';
 import 'package:rentals/views/rent/rent_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/profile/acc_page.dart';
+import 'package:rentals/views/map/map_page.dart';
+import 'package:rentals/views/home/near_me_page.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -45,13 +46,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     {'icon': 'assets/icons/books_icon.png', 'label': 'Books'},
   ];
 
-  // --- UPDATED: Removed RentPage to decouple it from the bottom navbar ---
-  final List<Widget> pages = [
-    const HomePage(), // Index 0
-    const ChatPage(), // Index 1
-    const MyrentPage(), // Index 2 (Shifted from 3)
-    const AccPage(), // Index 3 (Shifted from 4)
-  ];
+  late final List<Widget> pages;
 
   @override
   void initState() {
@@ -60,6 +55,29 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+
+    pages = [
+      HomePage(
+        onMapTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MapPage()),
+          );
+        },
+        onNearMeTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const NearMePage()),
+          );
+        },
+        onCategorySelected: (category) {
+          // HomePage handles routing internally
+        },
+      ),
+      const ChatPage(),
+      const MyrentPage(),
+      const AccPage(),
+    ];
   }
 
   @override
@@ -127,7 +145,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                 _navItem('assets/icons/home_icon.png', "Home", 0),
                 _navItem('assets/icons/chat_icon.png', "Chat", 1),
                 const SizedBox(width: 50),
-                // --- UPDATED INDICES FOR REMAINING TABS ---
                 _navItem('assets/icons/MyRent_icon.png', "My Rent", 2),
                 _navItem('assets/icons/account_icon.png', "Account", 3),
               ],
@@ -138,7 +155,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
             child: GestureDetector(
               onTap: toggleMenu,
               onLongPress: () {
-                // --- UPDATED: Use Navigator.push instead of changing selectIndex ---
                 setState(() {
                   isMenuOpen = false;
                   _animationController.reverse();
@@ -210,6 +226,11 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
             width: 24,
             height: 24,
             color: isActive ? Colors.blueAccent : Colors.white,
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.image,
+              color: isActive ? Colors.blueAccent : Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -309,7 +330,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                           angle: -angle,
                                           child: GestureDetector(
                                             onTap: () {
-                                              // --- UPDATED: Use Navigator.push here too ---
                                               RentPage.categoryController.text =
                                                   menuItems[actualIndex]['label'];
                                               setState(() {
@@ -374,6 +394,8 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
           width: isActive ? 24 : 26,
           height: isActive ? 24 : 26,
           color: Colors.white,
+          errorBuilder: (context, error, stackTrace) =>
+              Icon(Icons.image, color: Colors.white, size: isActive ? 24 : 26),
         ),
       ],
     );

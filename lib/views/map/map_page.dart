@@ -34,7 +34,7 @@ class _MapPageState extends State<MapPage> {
           onTap: () {
             // 1. Close the bottom sheet
             Navigator.pop(context);
-            // 2. Open the full Product Page with the item's data
+            // 2. Open the full Product Page with the item's data (including injected ID)
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -190,7 +190,11 @@ class _MapPageState extends State<MapPage> {
 
           if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
             for (var doc in snapshot.data!.docs) {
-              final data = doc.data() as Map<String, dynamic>;
+              // Create mutable map and inject ID
+              final data = Map<String, dynamic>.from(
+                doc.data() as Map<String, dynamic>,
+              );
+              data['id'] = doc.id;
 
               // Safely extract coordinates if they exist
               double? lat;
@@ -211,18 +215,16 @@ class _MapPageState extends State<MapPage> {
                 markers.add(
                   Marker(
                     point: LatLng(lat, lng),
-                    width: 55, // Increased slightly for the image avatar
+                    width: 55,
                     height: 55,
                     child: GestureDetector(
                       onTap: () => _showItemPreview(context, data),
                       child: Builder(
                         builder: (context) {
-                          // 1. Safely check for images in this item's data
                           final List<dynamic>? imageUrls = data['imageUrls'];
                           final bool hasImage =
                               imageUrls != null && imageUrls.isNotEmpty;
 
-                          // 2. Fallback if no image exists
                           if (!hasImage) {
                             return const Icon(
                               Icons.location_on,
@@ -238,7 +240,6 @@ class _MapPageState extends State<MapPage> {
                             );
                           }
 
-                          // 3. Custom circular image marker
                           return Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
@@ -294,7 +295,7 @@ class _MapPageState extends State<MapPage> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.rentals.app', // Required by OSM
+                userAgentPackageName: 'com.rentals.app',
               ),
               MarkerLayer(markers: markers),
             ],

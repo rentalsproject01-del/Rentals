@@ -48,10 +48,12 @@ class _NearMePageState extends State<NearMePage> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
-          _locationError = 'Location services are disabled.';
-          _isFetchingLocation = false;
-        });
+        if (mounted) {
+          setState(() {
+            _locationError = 'Location services are disabled.';
+            _isFetchingLocation = false;
+          });
+        }
         return;
       }
 
@@ -59,19 +61,23 @@ class _NearMePageState extends State<NearMePage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() {
-            _locationError = 'Location permission denied.';
-            _isFetchingLocation = false;
-          });
+          if (mounted) {
+            setState(() {
+              _locationError = 'Location permission denied.';
+              _isFetchingLocation = false;
+            });
+          }
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _locationError = 'Location permissions are permanently denied.';
-          _isFetchingLocation = false;
-        });
+        if (mounted) {
+          setState(() {
+            _locationError = 'Location permissions are permanently denied.';
+            _isFetchingLocation = false;
+          });
+        }
         return;
       }
 
@@ -81,16 +87,20 @@ class _NearMePageState extends State<NearMePage> {
       UserService.currentLat = position.latitude;
       UserService.currentLng = position.longitude;
 
-      setState(() {
-        _userLat = position.latitude;
-        _userLng = position.longitude;
-        _isFetchingLocation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userLat = position.latitude;
+          _userLng = position.longitude;
+          _isFetchingLocation = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _locationError = 'Failed to get location: $e';
-        _isFetchingLocation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _locationError = 'Failed to get location: $e';
+          _isFetchingLocation = false;
+        });
+      }
     }
   }
 
@@ -220,6 +230,10 @@ class _NearMePageState extends State<NearMePage> {
       );
     }
 
+    if (_userLat == null || _userLng == null) {
+      return const Center(child: Text("Location not available. Please retry."));
+    }
+
     // --- USING SERVICE INSTEAD OF DIRECT QUERY ---
     return StreamBuilder<QuerySnapshot>(
       stream: RentalService.getNearbyCandidates(),
@@ -236,7 +250,13 @@ class _NearMePageState extends State<NearMePage> {
         List<Map<String, dynamic>> nearbyItems = [];
 
         for (var doc in snapshot.data!.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          // 1. Create a mutable map from document data safely
+          final data = Map<String, dynamic>.from(
+            doc.data() as Map<String, dynamic>,
+          );
+
+          // 2. Inject the Firestore document ID
+          data['id'] = doc.id;
 
           if (data['latitude'] != null && data['longitude'] != null) {
             double itemLat = (data['latitude'] is num)
@@ -257,7 +277,7 @@ class _NearMePageState extends State<NearMePage> {
               double distanceInKm = distanceInMeters / 1000;
 
               if (distanceInKm <= _selectedRadius) {
-                // Add the exact distance to the map so we can display it!
+                // Add the exact distance to the map so we can display it
                 data['distance_away'] = distanceInKm;
                 nearbyItems.add(data);
               }
@@ -299,7 +319,7 @@ class _NearMePageState extends State<NearMePage> {
     );
   }
 
-  // Exact same card from HomePage, with an added Distance tag!
+  // Exact same card from HomePage, with an added Distance tag and safe image handling
   Widget _buildDealCard(BuildContext context, Map<String, dynamic> deal) {
     String imageUrl = '';
 
@@ -309,7 +329,7 @@ class _NearMePageState extends State<NearMePage> {
         imageUrl = deal['imageUrls'][0].toString();
       } else if (deal['imageUrls'] is String &&
           (deal['imageUrls'] as String).isNotEmpty) {
-        imageUrl = deal['imageUrls'];
+        imageUrl = deal['imageUrls'].toString();
       }
     }
 
@@ -359,6 +379,7 @@ class _NearMePageState extends State<NearMePage> {
                           )
                         : Container(
                             height: 100,
+                            width: double.infinity,
                             color: Colors.grey[200],
                             child: const Icon(
                               Icons.image_not_supported,
@@ -416,6 +437,8 @@ class _NearMePageState extends State<NearMePage> {
                           color: Color(0xFF16BCE6),
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -423,12 +446,16 @@ class _NearMePageState extends State<NearMePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        "Rs. ${deal['price'] ?? ''}",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          color: Color(0xFF113F67),
+                      Expanded(
+                        child: Text(
+                          "Rs. ${deal['price'] ?? ''}",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: Color(0xFF113F67),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       GestureDetector(

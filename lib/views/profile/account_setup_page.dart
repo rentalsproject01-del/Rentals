@@ -20,10 +20,6 @@ class AccountSetupPage extends StatefulWidget {
 }
 
 class _AccountSetupPageState extends State<AccountSetupPage> {
-  // --- CONSTANTS ---
-  static const String DEFAULT_PROFILE_IMAGE_URL =
-      'https://firebasestorage.googleapis.com/v0/b/rentals-f9de4.appspot.com/o/default_avatar.png?alt=media';
-
   // --- CONTROLLERS ---
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -167,7 +163,7 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         return;
       }
 
-      String imageUrl = DEFAULT_PROFILE_IMAGE_URL;
+      String imageUrl = "";
 
       // 3. Upload Image if selected
       if (_imageFile != null) {

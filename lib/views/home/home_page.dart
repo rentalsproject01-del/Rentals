@@ -6,14 +6,25 @@ import 'dart:async';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/views/map/map_page.dart';
 import 'near_me_page.dart';
+import 'package:rentals/category_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/favorites_service.dart';
+import 'package:rentals/services/user_service.dart';
 
 // Kept for backward compatibility if any unedited file imports it.
 List<Map<String, dynamic>> globalLikedItems = [];
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final VoidCallback onMapTap;
+  final VoidCallback onNearMeTap;
+  final Function(String) onCategorySelected;
+
+  const HomePage({
+    super.key,
+    required this.onMapTap,
+    required this.onNearMeTap,
+    required this.onCategorySelected,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -23,6 +34,10 @@ class _HomePageState extends State<HomePage> {
   final PageController _offerController = PageController();
   int _currentOfferIndex = 0;
   Timer? _offerTimer;
+
+  String _userName = "User";
+  String _profileImageUrl = "";
+  bool _isLoadingUser = true;
 
   final List<String> _offerImages = const [
     'assets/images/offer1.png',
@@ -34,6 +49,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _startOfferTimer();
+    _fetchUserData();
   }
 
   @override
@@ -45,7 +61,9 @@ class _HomePageState extends State<HomePage> {
 
   void _startOfferTimer() {
     _offerTimer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
-      if (_currentOfferIndex < 2) {
+      if (_offerImages.isEmpty) return;
+
+      if (_currentOfferIndex < _offerImages.length - 1) {
         _currentOfferIndex++;
       } else {
         _currentOfferIndex = 0;
@@ -59,6 +77,21 @@ class _HomePageState extends State<HomePage> {
         );
       }
     });
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      final userData = await UserService.getCurrentUserProfile();
+      if (mounted) {
+        setState(() {
+          _userName = userData?['name'] ?? "User";
+          _profileImageUrl = userData?['profileImageUrl'] ?? "";
+          _isLoadingUser = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingUser = false);
+    }
   }
 
   @override
@@ -106,7 +139,7 @@ class _HomePageState extends State<HomePage> {
 
                     _buildSectionTitle("Top Deals"),
 
-                    StreamBuilder<List<Map<String, dynamic>>>(
+                    StreamBuilder<dynamic>(
                       stream: RentalService.getAllRentalsWithOwnerNames(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -121,7 +154,7 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        if (!snapshot.hasData) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),
                             child: Center(
@@ -137,7 +170,53 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        final items = snapshot.data!;
+                        List<Map<String, dynamic>> items = [];
+
+                        if (snapshot.data is QuerySnapshot) {
+                          final docs = (snapshot.data as QuerySnapshot).docs;
+                          if (docs.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Center(
+                                child: Text(
+                                  "No items available yet",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          for (var doc in docs) {
+                            final data = Map<String, dynamic>.from(
+                              doc.data() as Map<String, dynamic>,
+                            );
+                            data['id'] = doc.id;
+                            items.add(data);
+                          }
+                        } else if (snapshot.data is List) {
+                          final list = snapshot.data as List;
+                          if (list.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Center(
+                                child: Text(
+                                  "No items available yet",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          for (var item in list) {
+                            items.add(Map<String, dynamic>.from(item as Map));
+                          }
+                        }
 
                         return GridView.builder(
                           shrinkWrap: true,
@@ -153,8 +232,7 @@ class _HomePageState extends State<HomePage> {
                                 crossAxisSpacing: 15,
                               ),
                           itemBuilder: (context, index) {
-                            final data = items[index];
-                            return _buildDealCard(context, data);
+                            return _buildDealCard(context, items[index]);
                           },
                         );
                       },
@@ -177,20 +255,57 @@ class _HomePageState extends State<HomePage> {
       children: [
         Row(
           children: [
-            Image.asset('assets/images/rentals_rlogo.png', height: 40),
-            const SizedBox(width: 7),
-            const Column(
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[200],
+                border: Border.all(color: const Color(0xFF16BCE6), width: 1.5),
+              ),
+              child: ClipOval(
+                child: _profileImageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: _profileImageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.person,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                      )
+                    : const Icon(Icons.person, color: Colors.grey, size: 20),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Rentals",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
+                _isLoadingUser
+                    ? const SizedBox(
+                        height: 10,
+                        width: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        _userName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                const Text(
                   "Just Rent",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
@@ -202,6 +317,8 @@ class _HomePageState extends State<HomePage> {
           "assets/icons/notification_icon.png",
           height: 24,
           width: 24,
+          errorBuilder: (c, e, s) =>
+              const Icon(Icons.notifications_none, color: Colors.white),
         ),
       ],
     );
@@ -214,7 +331,7 @@ class _HomePageState extends State<HomePage> {
         scrollDirection: Axis.horizontal,
         children: [
           _categoryItem("Fashion", "assets/icons/fashion_icon.png"),
-          _categoryItem("Jwellery", "assets/icons/jwellery_icon.png"),
+          _categoryItem("Jewellery", "assets/icons/jwellery_icon.png"),
           _categoryItem("Vehicle", "assets/icons/vehicle_icon.png"),
           _categoryItem("House", "assets/icons/house_icon.png"),
           _categoryItem("Electronics", "assets/icons/electronic_icon.png"),
@@ -222,7 +339,7 @@ class _HomePageState extends State<HomePage> {
           _categoryItem("Game", "assets/icons/game_icon.png"),
           _categoryItem("GYM", "assets/icons/gym_icon.png"),
           _categoryItem("Travel", "assets/icons/travel_icon.png"),
-          _categoryItem("Decoration", "assets/icons/decore_icon.png"),
+          _categoryItem("Decore", "assets/icons/decore_icon.png"),
           _categoryItem("Furniture", "assets/icons/furniture_icon.png"),
           _categoryItem("Subscription", "assets/icons/subscription_icon.png"),
           _categoryItem("Other", "assets/icons/other_icon.png"),
@@ -232,37 +349,52 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _categoryItem(String label, String assetPath) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        children: [
-          Container(
-            height: 45,
-            width: 45,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00A2FF), Color(0xFF16BCE6)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: Colors.white24),
+    return GestureDetector(
+      onTap: () {
+        widget.onCategorySelected(label);
+        if (label != 'All') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CategoryPage(categoryName: label),
             ),
-            child: Center(
-              child: Image.asset(
-                assetPath,
-                height: 28,
-                width: 28,
-                color: Colors.white,
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          children: [
+            Container(
+              height: 45,
+              width: 45,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF00A2FF), Color(0xFF16BCE6)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Center(
+                child: Image.asset(
+                  assetPath,
+                  height: 28,
+                  width: 28,
+                  color: Colors.white,
+                  errorBuilder: (c, e, s) =>
+                      const Icon(Icons.category, color: Colors.white, size: 20),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -290,14 +422,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NearMePage(),
-                      ),
-                    );
-                  },
+                  onTap: widget.onNearMeTap,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -325,6 +450,11 @@ class _HomePageState extends State<HomePage> {
                           height: 18,
                           width: 18,
                           color: const Color(0xFF113F67),
+                          errorBuilder: (c, e, s) => const Icon(
+                            Icons.near_me,
+                            color: Color(0xFF113F67),
+                            size: 18,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         const Text(
@@ -342,12 +472,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MapPage()),
-                );
-              },
+              onTap: widget.onMapTap,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -370,7 +495,12 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(width: 7),
-                    Image.asset("assets/icons/map_icon.png", height: 14),
+                    Image.asset(
+                      "assets/icons/map_icon.png",
+                      height: 14,
+                      errorBuilder: (c, e, s) =>
+                          const Icon(Icons.map, color: Colors.white, size: 14),
+                    ),
                   ],
                 ),
               ),
@@ -382,6 +512,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPromoBanner() {
+    if (_offerImages.isEmpty) return const SizedBox.shrink();
+
     return Positioned(
       top: 100,
       left: 0,
@@ -395,7 +527,20 @@ class _HomePageState extends State<HomePage> {
             controller: _offerController,
             itemCount: _offerImages.length,
             itemBuilder: (context, index) {
-              return Image.asset(_offerImages[index], fit: BoxFit.cover);
+              return Image.asset(
+                _offerImages[index],
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(
+                      Icons.local_offer,
+                      color: Colors.grey,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              );
             },
           ),
         ),
@@ -404,6 +549,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPageIndicator() {
+    if (_offerImages.isEmpty) return const SizedBox.shrink();
+
     return Positioned(
       top: 290,
       left: 0,
@@ -432,11 +579,16 @@ class _HomePageState extends State<HomePage> {
     String imageUrl = '';
 
     if (deal['imageUrls'] != null) {
-      if (deal['imageUrls'] is List && (deal['imageUrls'] as List).isNotEmpty) {
-        imageUrl = deal['imageUrls'][0].toString();
+      if (deal['imageUrls'] is List) {
+        final list = (deal['imageUrls'] as List)
+            .where((e) => e != null && e.toString().trim().isNotEmpty)
+            .toList();
+        if (list.isNotEmpty) {
+          imageUrl = list[0].toString();
+        }
       } else if (deal['imageUrls'] is String &&
-          (deal['imageUrls'] as String).isNotEmpty) {
-        imageUrl = deal['imageUrls'];
+          deal['imageUrls'].toString().trim().isNotEmpty) {
+        imageUrl = deal['imageUrls'].toString().trim();
       }
     }
 
@@ -500,6 +652,7 @@ class _HomePageState extends State<HomePage> {
                             )
                           : Container(
                               height: 100,
+                              width: double.infinity,
                               color: Colors.grey[200],
                               child: const Icon(
                                 Icons.image_not_supported,
@@ -523,7 +676,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
@@ -680,6 +832,8 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
       timer,
     ) {
       if (!mounted) return;
+      if (_searchHints.isEmpty) return;
+
       final currentFullText = _searchHints[_currentHintIndex];
 
       setState(() {
@@ -721,7 +875,15 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
             padding: const EdgeInsets.symmetric(horizontal: 15),
             child: Row(
               children: [
-                Image.asset("assets/icons/search_icon.png", height: 20),
+                Image.asset(
+                  "assets/icons/search_icon.png",
+                  height: 20,
+                  errorBuilder: (c, e, s) => const Icon(
+                    Icons.search,
+                    size: 20,
+                    color: Color(0xFF113F67),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -737,20 +899,24 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
           ),
         ),
         const SizedBox(width: 20),
-        Image.asset("assets/icons/cart_icon.png", height: 24, width: 24),
+        Image.asset(
+          "assets/icons/cart_icon.png",
+          height: 24,
+          width: 24,
+          errorBuilder: (c, e, s) =>
+              const Icon(Icons.shopping_cart, color: Colors.white, size: 24),
+        ),
       ],
     );
   }
 }
 
-// --- UPDATED ANIMATED LIKE BUTTON ---
 class AnimatedLikeButton extends StatelessWidget {
   final Map<String, dynamic> deal;
   const AnimatedLikeButton({super.key, required this.deal});
 
   @override
   Widget build(BuildContext context) {
-    // Determine a stable ID for the stream
     String rentalId = FavoritesService.getRentalId(deal);
 
     return StreamBuilder<bool>(
@@ -764,9 +930,11 @@ class AnimatedLikeButton extends StatelessWidget {
             try {
               await FavoritesService.toggleFavorite(deal);
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Failed to update favorites.")),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Failed to update favorites.")),
+                );
+              }
             }
           },
           child: AnimatedSwitcher(

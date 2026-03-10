@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../auth/login_page.dart';
 import 'edit_profile.dart';
 import '../settings/help_support.dart';
 import '../settings/feedback_page.dart';
@@ -38,13 +38,27 @@ class SettingPage extends StatelessWidget {
     );
 
     if (confirmLogout == true) {
-      await FirebaseAuth.instance.signOut();
-      if (context.mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
+      try {
+        // Initialize GoogleSignIn with explicit serverClientId
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          serverClientId:
+              '413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com',
         );
+
+        // Sign out from Google first, then Firebase
+        await googleSignIn.signOut();
+        await FirebaseAuth.instance.signOut();
+
+        // Pop until the first route so the existing AuthGate handles the unauthenticated state correctly
+        if (context.mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+        }
       }
     }
   }

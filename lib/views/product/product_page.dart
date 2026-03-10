@@ -25,6 +25,12 @@ class _ProductPageState extends State<ProductPage> {
   bool _isOpeningChat = false;
   int _currentImageIndex = 0;
 
+  String get _resolvedSellerId {
+    return widget.productData['ownerId']?.toString() ??
+        widget.productData['hostId']?.toString() ??
+        '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -33,8 +39,7 @@ class _ProductPageState extends State<ProductPage> {
 
   Future<void> _fetchOwnerData() async {
     final data = widget.productData;
-    String uploaderId =
-        data['ownerId']?.toString() ?? data['hostId']?.toString() ?? '';
+    String uploaderId = _resolvedSellerId;
 
     if (uploaderId.isNotEmpty) {
       try {
@@ -72,11 +77,36 @@ class _ProductPageState extends State<ProductPage> {
   }
 
   Future<void> _handleCallSeller() async {
-    if (_ownerPhone.isNotEmpty) {
-      final Uri launchUri = Uri(scheme: 'tel', path: _ownerPhone);
-      if (await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri);
-      } else {
+    // Resolve phone number priority
+    String phoneNumber = _ownerPhone.trim();
+    if (phoneNumber.isEmpty) {
+      phoneNumber = (widget.productData['phoneNumber']?.toString() ?? '')
+          .trim();
+    }
+
+    if (phoneNumber.isNotEmpty) {
+      // Sanitize the phone number
+      String sanitizedPhoneNumber = phoneNumber
+          .replaceAll(' ', '')
+          .replaceAll('-', '')
+          .replaceAll('(', '')
+          .replaceAll(')', '');
+
+      final Uri launchUri = Uri(scheme: 'tel', path: sanitizedPhoneNumber);
+
+      try {
+        if (await canLaunchUrl(launchUri)) {
+          await launchUrl(launchUri);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Could not open dialer on this device."),
+              ),
+            );
+          }
+        }
+      } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -109,8 +139,17 @@ class _ProductPageState extends State<ProductPage> {
       }
 
       final data = widget.productData;
-      String ownerId =
-          data['ownerId']?.toString() ?? data['hostId']?.toString() ?? '';
+      String ownerId = _resolvedSellerId;
+      String itemId = data['id']?.toString() ?? '';
+
+      if (itemId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Item information is incomplete.")),
+          );
+        }
+        return;
+      }
 
       if (ownerId.isEmpty) {
         if (mounted) {
@@ -201,6 +240,23 @@ class _ProductPageState extends State<ProductPage> {
   }
 
   Future<void> _handleSendRequest() async {
+    final String ownerId = _resolvedSellerId;
+    final String itemId = widget.productData['id']?.toString() ?? '';
+
+    if (itemId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Item information is incomplete.")),
+      );
+      return;
+    }
+
+    if (ownerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Seller information is missing.")),
+      );
+      return;
+    }
+
     setState(() => _isRequesting = true);
     try {
       await TransactionService.createRentalRequest(

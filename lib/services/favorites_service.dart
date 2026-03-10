@@ -12,7 +12,6 @@ class FavoritesService {
   static String getRentalId(Map<String, dynamic> rentalData) {
     return rentalData['id']?.toString() ??
         rentalData['rentalId']?.toString() ??
-        rentalData['title']?.toString() ??
         'unknown_id';
   }
 

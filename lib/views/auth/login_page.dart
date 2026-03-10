@@ -47,7 +47,10 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId:
+            '413426387482-1pgt13tuh79e2ct009rike6ljn3gpuo6.apps.googleusercontent.com',
+      );
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
