@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_room_page.dart';
 
@@ -195,19 +196,53 @@ class _ChatPageState extends State<ChatPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           children: [
-            // --- OTHER USER AVATAR ---
-            ClipOval(
-              child: otherUserImage.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: otherUserImage,
-                      width: 52,
-                      height: 52,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => _buildAvatarPlaceholder(),
-                      errorWidget: (context, url, error) =>
-                          _buildAvatarPlaceholder(),
-                    )
-                  : _buildAvatarPlaceholder(),
+            // --- OTHER USER AVATAR WITH ONLINE STATUS ---
+            Stack(
+              children: [
+                ClipOval(
+                  child: otherUserImage.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: otherUserImage,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) =>
+                              _buildAvatarPlaceholder(),
+                          errorWidget: (context, url, error) =>
+                              _buildAvatarPlaceholder(),
+                        )
+                      : _buildAvatarPlaceholder(),
+                ),
+                Positioned(
+                  bottom: 2,
+                  right: 2,
+                  child: StreamBuilder<DatabaseEvent>(
+                    stream: ChatService.getUserStatusStream(otherUserId),
+                    builder: (context, statusSnapshot) {
+                      bool isOnline = false;
+                      if (statusSnapshot.hasData &&
+                          statusSnapshot.data!.snapshot.value != null) {
+                        final statusData = statusSnapshot.data!.snapshot.value;
+                        if (statusData is Map) {
+                          isOnline = statusData['isOnline'] == true;
+                        }
+                      }
+
+                      if (!isOnline) return const SizedBox.shrink();
+
+                      return Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.greenAccent[400],
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 15),
 
@@ -253,21 +288,52 @@ class _ChatPageState extends State<ChatPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    lastMessage.isNotEmpty
-                        ? lastMessage
-                        : 'Start the conversation',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: lastMessage.isNotEmpty
-                          ? Colors.black87
-                          : Colors.grey.shade400,
-                      fontStyle: lastMessage.isEmpty
-                          ? FontStyle.italic
-                          : FontStyle.normal,
+                  StreamBuilder<DatabaseEvent>(
+                    stream: ChatService.getTypingStatusStream(
+                      chatRoomId,
+                      otherUserId,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    builder: (context, typingSnapshot) {
+                      bool isTyping = false;
+                      if (typingSnapshot.hasData &&
+                          typingSnapshot.data!.snapshot.value != null) {
+                        final typingData = typingSnapshot.data!.snapshot.value;
+                        if (typingData is Map) {
+                          isTyping = typingData['isTyping'] == true;
+                        }
+                      }
+
+                      if (isTyping) {
+                        return const Text(
+                          'Typing...',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      }
+
+                      return Text(
+                        lastMessage.isNotEmpty
+                            ? lastMessage
+                            : 'Start the conversation',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: lastMessage.isNotEmpty
+                              ? Colors.black87
+                              : Colors.grey.shade400,
+                          fontStyle: lastMessage.isEmpty
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
                   ),
                 ],
               ),

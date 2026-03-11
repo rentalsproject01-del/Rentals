@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "413426387482",
+    "firebase_url": "https://rentals-f9de4-default-rtdb.firebaseio.com",
     "project_id": "rentals-f9de4",
     "storage_bucket": "rentals-f9de4.firebasestorage.app"
   },

@@ -83,6 +83,7 @@ class DefaultFirebaseOptions {
     appId: '1:413426387482:android:6d8e2202d941ac5e295fa3',
     messagingSenderId: '413426387482',
     projectId: 'rentals-f9de4',
+    databaseURL: 'https://rentals-f9de4-default-rtdb.firebaseio.com',
     storageBucket: 'rentals-f9de4.firebasestorage.app',
   );
 

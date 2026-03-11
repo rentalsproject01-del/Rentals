@@ -9,6 +9,7 @@ import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/profile/acc_page.dart';
 import 'package:rentals/views/map/map_page.dart';
 import 'package:rentals/views/home/near_me_page.dart';
+import 'package:rentals/services/chat_service.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -51,6 +52,10 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    // Initialize user presence in RTDB when entering the main authenticated app shell
+    ChatService.initializePresence();
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),

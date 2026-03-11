@@ -1,13 +1,93 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart' hide Query;
+import 'package:firebase_database/firebase_database.dart' as rtdb show Query;
 
 class ChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseDatabase _db = FirebaseDatabase.instance;
+
+  static StreamSubscription<DatabaseEvent>? _presenceSubscription;
 
   /// Returns the current authenticated user's UID.
   static String? getCurrentUserId() {
     return _auth.currentUser?.uid;
+  }
+
+  /// Initializes user presence tracking (online status and last seen).
+  static void initializePresence() {
+    if (_presenceSubscription != null) return;
+
+    final String? uid = getCurrentUserId();
+    if (uid == null) return;
+
+    final DatabaseReference statusRef = _db.ref().child('status/$uid');
+    final DatabaseReference connectedRef = _db.ref().child('.info/connected');
+
+    _presenceSubscription = connectedRef.onValue.listen((event) {
+      final isConnected = event.snapshot.value as bool? ?? false;
+      if (isConnected) {
+        // Set up onDisconnect operations to run if the client drops connection
+        statusRef
+            .onDisconnect()
+            .update({'isOnline': false, 'lastSeen': ServerValue.timestamp})
+            .then((_) {
+              // Once onDisconnect is queued, update current status to online
+              statusRef.update({'isOnline': true});
+            });
+      }
+    });
+  }
+
+  /// Cleans up the presence listener safely.
+  static void cleanupPresence() {
+    _presenceSubscription?.cancel();
+    _presenceSubscription = null;
+  }
+
+  /// Manually sets the user offline (e.g., during logout).
+  static Future<void> setUserOffline() async {
+    final String? uid = getCurrentUserId();
+    if (uid == null) return;
+
+    await _db.ref().child('status/$uid').update({
+      'isOnline': false,
+      'lastSeen': ServerValue.timestamp,
+    });
+  }
+
+  /// Retrieves a stream of another user's online status.
+  static Stream<DatabaseEvent> getUserStatusStream(String uid) {
+    return _db.ref().child('status/$uid').onValue;
+  }
+
+  /// Sets the typing status for the current user in a specific chat room.
+  static Future<void> setTypingStatus(String chatRoomId, bool isTyping) async {
+    final String? uid = getCurrentUserId();
+    if (uid == null) return;
+
+    final DatabaseReference typingRef = _db.ref().child(
+      'typing/$chatRoomId/$uid',
+    );
+
+    if (isTyping) {
+      await typingRef.set({
+        'isTyping': true,
+        'updatedAt': ServerValue.timestamp,
+      });
+    } else {
+      await typingRef.remove();
+    }
+  }
+
+  /// Retrieves a stream of a specific user's typing status in a chat room.
+  static Stream<DatabaseEvent> getTypingStatusStream(
+    String chatRoomId,
+    String userId,
+  ) {
+    return _db.ref().child('typing/$chatRoomId/$userId').onValue;
   }
 
   /// Returns a deterministic chat room ID based on the item, owner, and renter.
@@ -66,7 +146,7 @@ class ChatService {
       }
     }
 
-    // Create the room document
+    // Create the room document in Firestore
     await roomRef.set({
       'chatRoomId': chatRoomId,
       'itemId': itemId,
@@ -101,17 +181,21 @@ class ChatService {
         .snapshots();
   }
 
-  /// Retrieves a stream of messages for a specific chat room.
-  static Stream<QuerySnapshot> getMessages(String chatRoomId) {
-    return _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots();
+  /// Retrieves a stream of messages for a specific chat room from Realtime Database (Full snapshot stream).
+  static Stream<DatabaseEvent> getMessages(String chatRoomId) {
+    return _db
+        .ref()
+        .child('messages/$chatRoomId')
+        .orderByChild('timestamp')
+        .onValue;
   }
 
-  /// Sends a message and updates the parent chat room's latest message data.
+  /// Retrieves a Realtime Database Query for messages to allow incremental listening.
+  static rtdb.Query getMessagesQuery(String chatRoomId) {
+    return _db.ref().child('messages/$chatRoomId').orderByChild('timestamp');
+  }
+
+  /// Sends a message to Realtime Database and updates the parent chat room's latest message data in Firestore.
   static Future<void> sendMessage({
     required String chatRoomId,
     required String text,
@@ -125,20 +209,23 @@ class ChatService {
     final String trimmedText = text.trim();
     if (trimmedText.isEmpty) return;
 
+    // 1. Add message to the Realtime Database
+    final DatabaseReference msgsRef = _db.ref().child('messages/$chatRoomId');
+    final DatabaseReference newMessageRef = msgsRef.push();
+
+    await newMessageRef.set({
+      'senderId': currentUserId,
+      'receiverId': receiverId,
+      'text': trimmedText,
+      'timestamp': ServerValue.timestamp,
+      'isRead': false,
+    });
+
+    // 2. Update parent room in Firestore with the latest message details
     final DocumentReference roomRef = _firestore
         .collection('chat_rooms')
         .doc(chatRoomId);
 
-    // 1. Add message to the subcollection
-    await roomRef.collection('messages').add({
-      'senderId': currentUserId,
-      'receiverId': receiverId,
-      'text': trimmedText,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-    });
-
-    // 2. Update parent room with the latest message details
     await roomRef.update({
       'lastMessage': trimmedText,
       'lastMessageSenderId': currentUserId,
