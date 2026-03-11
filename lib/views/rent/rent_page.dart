@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
-// Import the separated logic files
 import 'package:rentals/views/rent/location_picker_page.dart';
 import 'package:rentals/views/rent/rent_form.dart';
 import 'package:rentals/views/rent/rent_image_picker.dart';
@@ -14,7 +13,7 @@ class RentPage extends StatefulWidget {
   const RentPage({super.key});
 
   static final TextEditingController categoryController = TextEditingController(
-    text: "Fashion", // Default fallback for Navbar
+    text: "Fashion",
   );
 
   @override
@@ -34,9 +33,10 @@ class _RentPageState extends State<RentPage> {
   final _priceController = TextEditingController();
   final _subcategoryController = TextEditingController();
   final _locationController = TextEditingController(text: "Detecting...");
-  final _phoneController = TextEditingController();
+  final _phoneController = TextEditingController(text: "xxxxxxxxx");
+  final _emailController = TextEditingController(text: "xyz@gmail.com");
 
-  String _selectedDuration = 'per day';
+  String _selectedDuration = 'Per Day';
   List<File> _selectedImages = [];
   bool _isUploading = false;
 
@@ -44,6 +44,9 @@ class _RentPageState extends State<RentPage> {
   double? _latitude;
   double? _longitude;
   bool _isFetchingLocation = false;
+
+  // --- DESIGN COLORS ---
+  final Color primaryDarkBlue = const Color(0xFF113F67);
 
   @override
   void initState() {
@@ -61,6 +64,7 @@ class _RentPageState extends State<RentPage> {
     _subcategoryController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -178,6 +182,7 @@ class _RentPageState extends State<RentPage> {
         latitude: _latitude!,
         longitude: _longitude!,
         phoneNumber: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
         images: _selectedImages,
       );
 
@@ -189,20 +194,10 @@ class _RentPageState extends State<RentPage> {
           ),
         );
 
-        // Reset Fields
-        setState(() {
-          _titleController.clear();
-          _subtitleController.clear();
-          _descriptionController.clear();
-          _depositController.clear();
-          _priceController.clear();
-          _phoneController.clear();
-          RentPage.categoryController.text = 'Fashion';
-        });
-
-        // Clear images using the GlobalKey attached to RentImagePicker
-        _imagePickerKey.currentState?.clearImages();
-        _getCurrentLocation();
+        // MODIFIED: Pop the screen and return to Home instead of resetting fields
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -221,14 +216,14 @@ class _RentPageState extends State<RentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D3454),
+      backgroundColor: primaryDarkBlue,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             // --- HEADER ---
             Padding(
-              padding: const EdgeInsets.only(left: 20, top: 20, bottom: 30),
+              padding: const EdgeInsets.only(left: 20, top: 20, bottom: 45),
               child: Row(
                 children: [
                   GestureDetector(
@@ -239,19 +234,15 @@ class _RentPageState extends State<RentPage> {
                       'assets/icons/arrow_icon.png',
                       height: 24,
                       width: 24,
-                      color: Colors.white,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 7),
                   const Text(
-                    "Just Rent",
+                    'Just Rent',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
+                      fontSize: 20,
+                      fontFamily: 'Asap',
                     ),
                   ),
                 ],
@@ -263,12 +254,8 @@ class _RentPageState extends State<RentPage> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Background White Container containing the Form
-                  Positioned(
-                    top: 80,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
+                  Positioned.fill(
+                    top: 60,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -278,7 +265,7 @@ class _RentPageState extends State<RentPage> {
                         ),
                       ),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(25, 110, 25, 30),
+                        padding: const EdgeInsets.fromLTRB(20, 145, 20, 30),
                         child: RentForm(
                           formKey: _formKey,
                           titleController: _titleController,
@@ -288,6 +275,7 @@ class _RentPageState extends State<RentPage> {
                           priceController: _priceController,
                           locationController: _locationController,
                           phoneController: _phoneController,
+                          emailController: _emailController,
                           selectedDuration: _selectedDuration,
                           onDurationChanged: (val) =>
                               setState(() => _selectedDuration = val),
@@ -307,8 +295,8 @@ class _RentPageState extends State<RentPage> {
                   // Floating Image Carousel
                   Positioned(
                     top: 0,
-                    left: 20,
-                    right: 20,
+                    left: 0,
+                    right: 0,
                     child: RentImagePicker(
                       key: _imagePickerKey,
                       onImagesChanged: (files) =>

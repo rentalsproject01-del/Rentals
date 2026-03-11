@@ -23,6 +23,7 @@ class RentalService {
     required double latitude,
     required double longitude,
     required String phoneNumber,
+    required String email, // <-- 1. ADDED EMAIL PARAMETER HERE
     required List<File> images,
   }) async {
     final User? currentUser = _auth.currentUser;
@@ -77,6 +78,7 @@ class RentalService {
       'latitude': latitude,
       'longitude': longitude,
       'phoneNumber': phoneNumber,
+      'email': email, // <-- 2. SAVED EMAIL TO FIRESTORE HERE
       'ownerId': uid,
       'ownerName': ownerName,
       'ownerImage': ownerImage,

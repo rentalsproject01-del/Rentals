@@ -17,6 +17,7 @@ class RentSubmitService {
     required double latitude,
     required double longitude,
     required String phoneNumber,
+    required String email, // <-- ADDED EMAIL HERE
     required List<File> images,
   }) async {
     await RentalService.uploadRental(
@@ -32,6 +33,7 @@ class RentSubmitService {
       latitude: latitude,
       longitude: longitude,
       phoneNumber: phoneNumber,
+      email: email, // <-- PASSED EMAIL HERE
       images: images,
     );
   }

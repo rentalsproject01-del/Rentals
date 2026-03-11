@@ -24,64 +24,76 @@ class _MyrentPageState extends State<MyrentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF113F67),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // --- HEADER & TOGGLE ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'My Rentals',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+      body: Column(
+        children: [
+          // --- HEADER & TOGGLE ---
+          Padding(
+            padding: const EdgeInsets.only(left: 20, bottom: 25, top: 60),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 24,
                   ),
-                  const SizedBox(height: 20),
+                ),
+                const SizedBox(width: 7),
+                const Text(
+                  'My Rentals',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // --- MAIN CONTENT ---
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(25),
+                  topRight: Radius.circular(25),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 25),
                   _buildToggleSwitch(),
+                  const SizedBox(height: 35),
+                  Expanded(
+                    child: isHostMode
+                        ? _buildUploadedItemsList()
+                        : _buildRentedItemsList(),
+                  ),
                 ],
               ),
             ),
-
-            // --- MAIN CONTENT ---
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                  child: isHostMode
-                      ? _buildUploadedItemsList()
-                      : _buildRentedItemsList(),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildToggleSwitch() {
     return Container(
-      height: 50,
+      width: 200,
+      height: 28,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(25),
+        color: const Color(0xFFE9E4E4),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
@@ -89,20 +101,20 @@ class _MyrentPageState extends State<MyrentPage> {
             child: GestureDetector(
               onTap: () => setState(() => isHostMode = true),
               child: Container(
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isHostMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
+                  color: isHostMode
+                      ? const Color(0xFF113F67)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Center(
-                  child: Text(
-                    "Host",
-                    style: TextStyle(
-                      color: isHostMode
-                          ? const Color(0xFF113F67)
-                          : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                child: Text(
+                  'Host',
+                  style: TextStyle(
+                    color: isHostMode ? Colors.white : const Color(0xFF113F67),
+                    fontSize: 11,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -112,20 +124,20 @@ class _MyrentPageState extends State<MyrentPage> {
             child: GestureDetector(
               onTap: () => setState(() => isHostMode = false),
               child: Container(
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: !isHostMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(25),
+                  color: !isHostMode
+                      ? const Color(0xFF113F67)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Center(
-                  child: Text(
-                    "Rent",
-                    style: TextStyle(
-                      color: !isHostMode
-                          ? const Color(0xFF113F67)
-                          : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                child: Text(
+                  'Rent',
+                  style: TextStyle(
+                    color: !isHostMode ? Colors.white : const Color(0xFF113F67),
+                    fontSize: 11,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -166,16 +178,14 @@ class _MyrentPageState extends State<MyrentPage> {
 
         final docs = snapshot.data!.docs;
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(20),
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: docs.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 15),
           itemBuilder: (context, index) {
             final data = Map<String, dynamic>.from(
               docs[index].data() as Map<String, dynamic>,
             );
-            data['id'] =
-                docs[index].id; // Inject ID for ProductPage compatibility
+            data['id'] = docs[index].id;
             return _buildUploadedItemCard(data);
           },
         );
@@ -208,98 +218,139 @@ class _MyrentPageState extends State<MyrentPage> {
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 30),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        width: 80,
-                        height: 80,
-                        color: Colors.grey[200],
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        width: 80,
-                        height: 80,
+            // Left: Item Image
+            Container(
+              width: 120,
+              height: 70,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9E4E4),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Container(color: Colors.grey[200]),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      )
+                    : Container(
                         color: Colors.grey[200],
                         child: const Icon(
-                          Icons.broken_image,
+                          Icons.image_not_supported,
                           color: Colors.grey,
                         ),
                       ),
-                    )
-                  : Container(
-                      width: 80,
-                      height: 80,
-                      color: Colors.grey[200],
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
-                      ),
-                    ),
+              ),
             ),
             const SizedBox(width: 15),
 
-            // Details
+            // Middle: Name, Action Buttons, Category
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF113F67),
-                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF113F67),
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  if (category.isNotEmpty)
-                    Text(
-                      category,
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Rs. $price",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF16BCE6),
+                      // Reject Button Placeholder
+                      Container(
+                        width: 55,
+                        height: 27,
+                        decoration: BoxDecoration(
+                          color: const Color(0x26FF0000),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/icons/delete_icon.png',
+                            height: 16,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.close,
+                                  color: Colors.red,
+                                  size: 16,
+                                ),
+                          ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      // Accept Button Placeholder
+                      Container(
+                        width: 55,
+                        height: 27,
+                        decoration: BoxDecoration(
+                          color: const Color(0x2600FF5D),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/icons/accept_icon.png',
+                            height: 16,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.check,
+                                  color: Colors.green,
+                                  size: 16,
+                                ),
+                          ),
+                        ),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF6F7172),
+                      fontSize: 12,
+                      fontFamily: 'Inria Serif',
+                      fontWeight: FontWeight.w300,
+                    ),
                   ),
                 ],
               ),
+            ),
+
+            // Right: Price
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "Rs. $price",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF16BCE6),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -331,10 +382,9 @@ class _MyrentPageState extends State<MyrentPage> {
 
         final transactions = snapshot.data!;
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(20),
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: transactions.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 15),
           itemBuilder: (context, index) {
             return _buildTransactionCard(transactions[index]);
           },
@@ -349,103 +399,103 @@ class _MyrentPageState extends State<MyrentPage> {
     if (tx.status.toLowerCase() == 'approved') statusColor = Colors.green;
     if (tx.status.toLowerCase() == 'rejected') statusColor = Colors.red;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 30),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: tx.itemImage.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: tx.itemImage,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: 80,
-                      height: 80,
+          // Left: Item Image
+          Container(
+            width: 120,
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE9E4E4),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: tx.itemImage.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: tx.itemImage,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          Container(color: Colors.grey[200]),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    )
+                  : Container(
                       color: Colors.grey[200],
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                      ),
                     ),
-                    errorWidget: (context, url, error) => Container(
-                      width: 80,
-                      height: 80,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    ),
-                  )
-                : Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                    ),
-                  ),
+            ),
           ),
           const SizedBox(width: 15),
 
-          // Details
+          // Middle: Title & Date
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        tx.itemName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF113F67),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      tx.status,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
+                Text(
+                  tx.itemName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 12,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 20),
                 Text(
                   "Requested: ${tx.date}",
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Rs. ${tx.price}",
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF16BCE6),
+                    color: Color(0xFF6F7172),
+                    fontSize: 12,
+                    fontFamily: 'Inria Serif',
+                    fontWeight: FontWeight.w300,
                   ),
                 ),
               ],
             ),
+          ),
+
+          // Right: Status & Price
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                tx.status,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 12,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Rs. ${tx.price}",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF16BCE6),
+                ),
+              ),
+            ],
           ),
         ],
       ),

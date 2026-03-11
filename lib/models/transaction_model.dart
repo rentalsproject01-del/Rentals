@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class TransactionModel {
   final String id;
   final String renterId;
@@ -9,6 +11,13 @@ class TransactionModel {
   final String date;
   final String status;
   final double? rating;
+
+  // New Lifecycle Fields
+  final int? rentalDays;
+  final DateTime? acceptedAt;
+  final DateTime? rejectedAt;
+  final DateTime? startAt;
+  final DateTime? endAt;
 
   // UI Specific Fields
   final String renterName;
@@ -27,6 +36,11 @@ class TransactionModel {
     required this.date,
     required this.status,
     this.rating,
+    this.rentalDays,
+    this.acceptedAt,
+    this.rejectedAt,
+    this.startAt,
+    this.endAt,
     required this.renterName,
     required this.renterEmail,
     required this.renterImage,
@@ -46,6 +60,21 @@ class TransactionModel {
       status: data['status'] ?? 'Pending',
       rating: data['rating'] != null
           ? double.tryParse(data['rating'].toString())
+          : null,
+      rentalDays: data['rentalDays'] != null
+          ? int.tryParse(data['rentalDays'].toString())
+          : null,
+      acceptedAt: data['acceptedAt'] is Timestamp
+          ? (data['acceptedAt'] as Timestamp).toDate()
+          : null,
+      rejectedAt: data['rejectedAt'] is Timestamp
+          ? (data['rejectedAt'] as Timestamp).toDate()
+          : null,
+      startAt: data['startAt'] is Timestamp
+          ? (data['startAt'] as Timestamp).toDate()
+          : null,
+      endAt: data['endAt'] is Timestamp
+          ? (data['endAt'] as Timestamp).toDate()
           : null,
       renterName: data['renterName'] ?? 'Unknown User',
       renterEmail: data['renterEmail'] ?? 'No email provided',
