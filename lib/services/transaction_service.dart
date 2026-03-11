@@ -127,4 +127,33 @@ class TransactionService {
           }).toList();
         });
   }
+
+  static Future<void> acceptRentalRequest({
+    required String transactionId,
+    required int rentalDays,
+  }) async {
+    if (rentalDays <= 0) {
+      throw Exception('Rental days must be greater than 0.');
+    }
+
+    final now = DateTime.now();
+    final endDate = now.add(Duration(days: rentalDays));
+
+    await _firestore.collection('transactions').doc(transactionId).update({
+      'status': 'Accepted',
+      'rentalDays': rentalDays,
+      'acceptedAt': FieldValue.serverTimestamp(),
+      'startAt': Timestamp.fromDate(now),
+      'endAt': Timestamp.fromDate(endDate),
+    });
+  }
+
+  static Future<void> rejectRentalRequest({
+    required String transactionId,
+  }) async {
+    await _firestore.collection('transactions').doc(transactionId).update({
+      'status': 'Rejected',
+      'rejectedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }
