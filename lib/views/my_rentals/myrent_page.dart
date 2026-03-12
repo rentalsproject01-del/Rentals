@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/transaction_service.dart';
 import 'package:rentals/models/transaction_model.dart';
-import 'package:rentals/views/product/product_page.dart';
 
 class MyrentPage extends StatefulWidget {
-  const MyrentPage({super.key});
+  final bool initialHostMode;
+  final String? initialTransactionId;
+
+  const MyrentPage({
+    super.key,
+    this.initialHostMode = true,
+    this.initialTransactionId,
+  });
 
   @override
   State<MyrentPage> createState() => _MyrentPageState();
@@ -17,9 +20,13 @@ class MyrentPage extends StatefulWidget {
 
 class _MyrentPageState extends State<MyrentPage> {
   // true = Host tab, false = Rent tab
-  bool isHostMode = true;
-  // true = Listings sub-tab, false = Requests sub-tab (only applies when isHostMode is true)
-  bool isHostListingsMode = true;
+  late bool isHostMode;
+
+  @override
+  void initState() {
+    super.initState();
+    isHostMode = widget.initialHostMode;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +34,6 @@ class _MyrentPageState extends State<MyrentPage> {
       backgroundColor: const Color(0xFF113F67),
       body: Column(
         children: [
-          // --- HEADER & TOGGLE ---
           Padding(
             padding: const EdgeInsets.only(left: 20, bottom: 25, top: 60),
             child: Row(
@@ -57,8 +63,6 @@ class _MyrentPageState extends State<MyrentPage> {
               ],
             ),
           ),
-
-          // --- MAIN CONTENT ---
           Expanded(
             child: Container(
               width: double.infinity,
@@ -73,21 +77,10 @@ class _MyrentPageState extends State<MyrentPage> {
                 children: [
                   const SizedBox(height: 25),
                   _buildToggleSwitch(),
-
-                  // Secondary Toggle for Host Mode
-                  if (isHostMode) ...[
-                    const SizedBox(height: 15),
-                    _buildHostSubToggleSwitch(),
-                    const SizedBox(height: 20),
-                  ] else ...[
-                    const SizedBox(height: 35),
-                  ],
-
+                  const SizedBox(height: 35),
                   Expanded(
                     child: isHostMode
-                        ? (isHostListingsMode
-                              ? _buildUploadedItemsList()
-                              : _buildHostRequestsList())
+                        ? _buildHostRequestsList()
                         : _buildRentedItemsList(),
                   ),
                 ],
@@ -99,7 +92,6 @@ class _MyrentPageState extends State<MyrentPage> {
     );
   }
 
-  // Main Host / Rent Toggle
   Widget _buildToggleSwitch() {
     return Container(
       width: 200,
@@ -161,72 +153,6 @@ class _MyrentPageState extends State<MyrentPage> {
     );
   }
 
-  // Sub-toggle for Host: Listings / Requests
-  Widget _buildHostSubToggleSwitch() {
-    return Container(
-      width: 180,
-      height: 28,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isHostListingsMode = true),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isHostListingsMode ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: isHostListingsMode
-                      ? [const BoxShadow(color: Colors.black12, blurRadius: 4)]
-                      : [],
-                ),
-                child: const Text(
-                  'Listings',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF113F67),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => isHostListingsMode = false),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: !isHostListingsMode
-                      ? Colors.white
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: !isHostListingsMode
-                      ? [const BoxShadow(color: Colors.black12, blurRadius: 4)]
-                      : [],
-                ),
-                child: const Text(
-                  'Requests',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF113F67),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper for Time Calculation
   String _getRemainingTimeText(DateTime? endAt) {
     if (endAt == null) return '--d : --h : --m';
     final now = DateTime.now();
@@ -238,171 +164,6 @@ class _MyrentPageState extends State<MyrentPage> {
     return '${days.toString().padLeft(2, '0')}d : ${hours.toString().padLeft(2, '0')}h : ${mins.toString().padLeft(2, '0')}m';
   }
 
-  // ---------------------------------------------------------------------------
-  // HOST TAB -> LISTINGS
-  // ---------------------------------------------------------------------------
-  Widget _buildUploadedItemsList() {
-    final String? uid = FirebaseAuth.instance.currentUser?.uid;
-
-    if (uid == null) {
-      return const Center(child: Text("User not logged in."));
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: RentalService.getUserRentals(uid),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF113F67)),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(
-            child: Text(
-              "You have not uploaded any items yet.",
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          );
-        }
-
-        final docs = snapshot.data!.docs;
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = Map<String, dynamic>.from(
-              docs[index].data() as Map<String, dynamic>,
-            );
-            data['id'] = docs[index].id;
-            return _buildUploadedItemCard(data);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildUploadedItemCard(Map<String, dynamic> data) {
-    String imageUrl = '';
-    if (data['imageUrls'] != null) {
-      if (data['imageUrls'] is List && (data['imageUrls'] as List).isNotEmpty) {
-        imageUrl = data['imageUrls'][0].toString();
-      } else if (data['imageUrls'] is String &&
-          data['imageUrls'].toString().isNotEmpty) {
-        imageUrl = data['imageUrls'].toString();
-      }
-    }
-
-    String title = data['title']?.toString() ?? 'Unknown Title';
-    String price = data['price']?.toString() ?? '0';
-    String category =
-        data['subcategory']?.toString() ?? data['category']?.toString() ?? '';
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductPage(productData: data),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 30),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left: Item Image
-            Container(
-              width: 120,
-              height: 70,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9E4E4),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: Colors.grey[200]),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.broken_image,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.grey[200],
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(width: 15),
-
-            // Middle: Title & Category
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF113F67),
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF6F7172),
-                      fontSize: 12,
-                      fontFamily: 'Inria Serif',
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Right: Price
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "Rs. $price",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF16BCE6),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // HOST TAB -> REQUESTS
-  // ---------------------------------------------------------------------------
   Widget _buildHostRequestsList() {
     return StreamBuilder<List<TransactionModel>>(
       stream: TransactionService.getUserHosts(),
@@ -444,14 +205,29 @@ class _MyrentPageState extends State<MyrentPage> {
     }
     if (tx.status.toLowerCase() == 'rejected') statusColor = Colors.red;
 
-    bool isPending = tx.status.toLowerCase() == 'pending';
+    final bool isPending = tx.status.toLowerCase() == 'pending';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 30),
+    // Safely check if this is the targeted card
+    final bool isTarget =
+        widget.initialTransactionId != null &&
+        tx.id == widget.initialTransactionId;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 30),
+      padding: isTarget ? const EdgeInsets.all(10) : EdgeInsets.zero,
+      decoration: isTarget
+          ? BoxDecoration(
+              color: const Color(0xFF16BCE6).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFF16BCE6).withOpacity(0.5),
+                width: 1.5,
+              ),
+            )
+          : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left: Item Image
           Container(
             width: 100,
             height: 70,
@@ -485,8 +261,6 @@ class _MyrentPageState extends State<MyrentPage> {
             ),
           ),
           const SizedBox(width: 15),
-
-          // Middle: Renter Name, Actions/Status, Date
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +280,6 @@ class _MyrentPageState extends State<MyrentPage> {
                 if (isPending)
                   Row(
                     children: [
-                      // Reject Button
                       GestureDetector(
                         onTap: () async {
                           try {
@@ -532,7 +305,6 @@ class _MyrentPageState extends State<MyrentPage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Accept Button
                       GestureDetector(
                         onTap: () async {
                           final selectedDays = await showDialog<int>(
@@ -612,8 +384,6 @@ class _MyrentPageState extends State<MyrentPage> {
               ],
             ),
           ),
-
-          // Right: Renter Profile Image & Timer
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -669,9 +439,6 @@ class _MyrentPageState extends State<MyrentPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // RENT TAB: Items rented / requested by the current user
-  // ---------------------------------------------------------------------------
   Widget _buildRentedItemsList() {
     return StreamBuilder<List<TransactionModel>>(
       stream: TransactionService.getUserRents(),
@@ -713,12 +480,27 @@ class _MyrentPageState extends State<MyrentPage> {
     }
     if (tx.status.toLowerCase() == 'rejected') statusColor = Colors.red;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 30),
+    // Safely check if this is the targeted card
+    final bool isTarget =
+        widget.initialTransactionId != null &&
+        tx.id == widget.initialTransactionId;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 30),
+      padding: isTarget ? const EdgeInsets.all(10) : EdgeInsets.zero,
+      decoration: isTarget
+          ? BoxDecoration(
+              color: const Color(0xFF16BCE6).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFF16BCE6).withOpacity(0.5),
+                width: 1.5,
+              ),
+            )
+          : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left: Item Image
           Container(
             width: 120,
             height: 70,
@@ -752,8 +534,6 @@ class _MyrentPageState extends State<MyrentPage> {
             ),
           ),
           const SizedBox(width: 15),
-
-          // Middle: Title & Date
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -808,8 +588,6 @@ class _MyrentPageState extends State<MyrentPage> {
               ],
             ),
           ),
-
-          // Right: Status & Price
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

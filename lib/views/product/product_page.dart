@@ -5,7 +5,8 @@ import 'package:rentals/services/user_service.dart';
 import 'package:rentals/services/transaction_service.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_room_page.dart';
-import 'package:rentals/views/home/home_page.dart'; // Imports AnimatedLikeButton
+import 'package:rentals/views/home/home_page.dart';
+import 'package:rentals/views/profile/owner_profile_page.dart';
 
 class ProductPage extends StatefulWidget {
   final Map<String, dynamic> productData;
@@ -39,7 +40,7 @@ class _ProductPageState extends State<ProductPage> {
 
   Future<void> _fetchOwnerData() async {
     final data = widget.productData;
-    String uploaderId = _resolvedSellerId;
+    final String uploaderId = _resolvedSellerId;
 
     if (uploaderId.isNotEmpty) {
       try {
@@ -54,7 +55,7 @@ class _ProductPageState extends State<ProductPage> {
             _isLoadingOwner = false;
           });
         }
-      } catch (e) {
+      } catch (_) {
         if (mounted) {
           setState(() {
             _ownerName = data['ownerName'] ?? 'Unknown Owner';
@@ -76,8 +77,25 @@ class _ProductPageState extends State<ProductPage> {
     }
   }
 
+  void _openOwnerProfile() {
+    final String ownerId = _resolvedSellerId;
+
+    if (ownerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Owner profile is unavailable.")),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OwnerProfilePage(ownerId: ownerId),
+      ),
+    );
+  }
+
   Future<void> _handleCallSeller() async {
-    // Resolve phone number priority
     String phoneNumber = _ownerPhone.trim();
     if (phoneNumber.isEmpty) {
       phoneNumber = (widget.productData['phoneNumber']?.toString() ?? '')
@@ -85,8 +103,7 @@ class _ProductPageState extends State<ProductPage> {
     }
 
     if (phoneNumber.isNotEmpty) {
-      // Sanitize the phone number
-      String sanitizedPhoneNumber = phoneNumber
+      final String sanitizedPhoneNumber = phoneNumber
           .replaceAll(' ', '')
           .replaceAll('-', '')
           .replaceAll('(', '')
@@ -106,7 +123,7 @@ class _ProductPageState extends State<ProductPage> {
             );
           }
         }
-      } catch (e) {
+      } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -139,8 +156,8 @@ class _ProductPageState extends State<ProductPage> {
       }
 
       final data = widget.productData;
-      String ownerId = _resolvedSellerId;
-      String itemId = data['id']?.toString() ?? '';
+      final String ownerId = _resolvedSellerId;
+      final String itemId = data['id']?.toString() ?? '';
 
       if (itemId.isEmpty) {
         if (mounted) {
@@ -171,7 +188,6 @@ class _ProductPageState extends State<ProductPage> {
         return;
       }
 
-      // Fetch user profiles
       final rawOwnerData = await UserService.getUserById(ownerId);
       final rawRenterData = await UserService.getCurrentUserProfile();
 
@@ -184,22 +200,18 @@ class _ProductPageState extends State<ProductPage> {
         return;
       }
 
-      // Copy maps to ensure they are modifiable
       final ownerData = Map<String, dynamic>.from(rawOwnerData);
       final renterData = Map<String, dynamic>.from(rawRenterData);
 
-      // Inject UIDs
       ownerData['uid'] = ownerId;
       renterData['uid'] = currentUserId;
 
-      // Create or get the room
       final chatRoomId = await ChatService.createOrGetChatRoom(
         rentalData: data,
         ownerData: ownerData,
         renterData: renterData,
       );
 
-      // Extract item image safely
       String itemImage = '';
       if (data['imageUrls'] != null) {
         if (data['imageUrls'] is List &&
@@ -211,7 +223,6 @@ class _ProductPageState extends State<ProductPage> {
         }
       }
 
-      // Navigate to chat room
       if (mounted) {
         Navigator.push(
           context,
@@ -288,7 +299,6 @@ class _ProductPageState extends State<ProductPage> {
   Widget build(BuildContext context) {
     final data = widget.productData;
 
-    // Safely extract images
     List<String> images = [];
     if (data['imageUrls'] != null) {
       if (data['imageUrls'] is List) {
@@ -299,17 +309,17 @@ class _ProductPageState extends State<ProductPage> {
       }
     }
 
-    String title = data['title']?.toString() ?? 'Unknown Item';
-    String category =
+    final String title = data['title']?.toString() ?? 'Unknown Item';
+    final String category =
         data['subcategory']?.toString() ??
         data['category']?.toString() ??
         'General';
-    String price = data['price']?.toString() ?? '0';
-    String duration = data['duration']?.toString() ?? '';
-    String deposit = data['deposit']?.toString() ?? '0';
-    String description =
+    final String price = data['price']?.toString() ?? '0';
+    final String duration = data['duration']?.toString() ?? '';
+    final String deposit = data['deposit']?.toString() ?? '0';
+    final String description =
         data['description']?.toString() ?? 'No description provided.';
-    String rating = data['rating']?.toString() ?? 'N/A';
+    final String rating = data['rating']?.toString() ?? 'N/A';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -320,7 +330,6 @@ class _ProductPageState extends State<ProductPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- IMAGE CAROUSEL ---
                 SizedBox(
                   height: 380,
                   width: double.infinity,
@@ -367,7 +376,6 @@ class _ProductPageState extends State<ProductPage> {
                                 ),
                               ),
                             ),
-
                       if (images.length > 1)
                         Positioned(
                           bottom: 20,
@@ -396,13 +404,11 @@ class _ProductPageState extends State<ProductPage> {
                     ],
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.all(22.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- TITLE & LIKE BUTTON ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,8 +435,6 @@ class _ProductPageState extends State<ProductPage> {
                         ],
                       ),
                       const SizedBox(height: 8),
-
-                      // --- CATEGORY & RATING ---
                       Row(
                         children: [
                           Container(
@@ -465,8 +469,6 @@ class _ProductPageState extends State<ProductPage> {
                         ],
                       ),
                       const SizedBox(height: 25),
-
-                      // --- PRICE & DEPOSIT ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -538,71 +540,75 @@ class _ProductPageState extends State<ProductPage> {
                       const SizedBox(height: 25),
                       const Divider(color: Color(0xFFEEEEEE), thickness: 1.5),
                       const SizedBox(height: 15),
-
-                      // --- OWNER SECTION ---
                       Row(
                         children: [
-                          ClipOval(
-                            child: _ownerImage.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: _ownerImage,
-                                    width: 55,
-                                    height: 55,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: Colors.grey[200],
+                          GestureDetector(
+                            onTap: _openOwnerProfile,
+                            child: ClipOval(
+                              child: _ownerImage.isNotEmpty
+                                  ? CachedNetworkImage(
+                                      imageUrl: _ownerImage,
                                       width: 55,
                                       height: 55,
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(14.0),
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Color(0xFF16BCE6),
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => Container(
+                                        color: Colors.grey[200],
+                                        width: 55,
+                                        height: 55,
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(14.0),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF16BCE6),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    errorWidget: (context, url, error) =>
-                                        _buildAvatarPlaceholder(),
-                                  )
-                                : _buildAvatarPlaceholder(),
+                                      errorWidget: (context, url, error) =>
+                                          _buildAvatarPlaceholder(),
+                                    )
+                                  : _buildAvatarPlaceholder(),
+                            ),
                           ),
                           const SizedBox(width: 15),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Owner",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _openOwnerProfile,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Owner",
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                _isLoadingOwner
-                                    ? const SizedBox(
-                                        height: 14,
-                                        width: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Color(0xFF113F67),
+                                  const SizedBox(height: 2),
+                                  _isLoadingOwner
+                                      ? const SizedBox(
+                                          height: 14,
+                                          width: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF113F67),
+                                          ),
+                                        )
+                                      : Text(
+                                          _ownerName,
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF113F67),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      )
-                                    : Text(
-                                        _ownerName,
-                                        style: const TextStyle(
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF113F67),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                          // --- CALL BUTTON ---
                           Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFF16BCE6).withOpacity(0.15),
@@ -618,7 +624,6 @@ class _ProductPageState extends State<ProductPage> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          // --- MESSAGE BUTTON ---
                           Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFF16BCE6).withOpacity(0.15),
@@ -649,8 +654,6 @@ class _ProductPageState extends State<ProductPage> {
                       const SizedBox(height: 15),
                       const Divider(color: Color(0xFFEEEEEE), thickness: 1.5),
                       const SizedBox(height: 15),
-
-                      // --- DESCRIPTION ---
                       const Text(
                         "Description",
                         style: TextStyle(
@@ -674,8 +677,6 @@ class _ProductPageState extends State<ProductPage> {
               ],
             ),
           ),
-
-          // --- CUSTOM BACK BUTTON ---
           Positioned(
             top: 55,
             left: 20,
@@ -702,8 +703,6 @@ class _ProductPageState extends State<ProductPage> {
               ),
             ),
           ),
-
-          // --- BOTTOM ACTION BAR ---
           Positioned(
             bottom: 0,
             left: 0,

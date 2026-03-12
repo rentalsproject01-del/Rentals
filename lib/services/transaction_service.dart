@@ -25,6 +25,19 @@ class TransactionService {
     return "${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}";
   }
 
+  static int _extractSortMillis(Map<String, dynamic> data) {
+    if (data['createdAt'] is Timestamp) {
+      return (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+    if (data['acceptedAt'] is Timestamp) {
+      return (data['acceptedAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+    if (data['rejectedAt'] is Timestamp) {
+      return (data['rejectedAt'] as Timestamp).millisecondsSinceEpoch;
+    }
+    return 0;
+  }
+
   static Future<void> createRentalRequest({
     required Map<String, dynamic> rentalData,
   }) async {
@@ -56,15 +69,15 @@ class TransactionService {
       throw Exception('You cannot send a rental request to yourself.');
     }
 
+    // Check if the user has ANY existing request for this item, regardless of status.
     final existingReq = await _firestore
         .collection('transactions')
         .where('renterId', isEqualTo: uid)
         .where('rentalId', isEqualTo: rentalId)
-        .where('status', isEqualTo: 'Pending')
         .get();
 
     if (existingReq.docs.isNotEmpty) {
-      throw Exception('You already have a pending request for this item.');
+      throw Exception('You have already sent a request for this item.');
     }
 
     final now = DateTime.now();
@@ -103,10 +116,19 @@ class TransactionService {
     return _firestore
         .collection('transactions')
         .where('renterId', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final docs = snapshot.docs.toList();
+
+          docs.sort((a, b) {
+            final millisA = _extractSortMillis(a.data());
+            final millisB = _extractSortMillis(b.data());
+
+            // Descending order (newest first)
+            return millisB.compareTo(millisA);
+          });
+
+          return docs.map((doc) {
             return TransactionModel.fromMap(doc.data(), doc.id);
           }).toList();
         });
@@ -119,10 +141,19 @@ class TransactionService {
     return _firestore
         .collection('transactions')
         .where('hostId', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final docs = snapshot.docs.toList();
+
+          docs.sort((a, b) {
+            final millisA = _extractSortMillis(a.data());
+            final millisB = _extractSortMillis(b.data());
+
+            // Descending order (newest first)
+            return millisB.compareTo(millisA);
+          });
+
+          return docs.map((doc) {
             return TransactionModel.fromMap(doc.data(), doc.id);
           }).toList();
         });
