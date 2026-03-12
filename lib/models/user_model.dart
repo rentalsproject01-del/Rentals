@@ -5,6 +5,7 @@ class UserModel {
   final String name;
   final String email;
   final String phone;
+  final String location;
   final double? latitude;
   final double? longitude;
   final String profileImageUrl;
@@ -16,6 +17,7 @@ class UserModel {
     required this.name,
     required this.email,
     required this.phone,
+    required this.location,
     this.latitude,
     this.longitude,
     required this.profileImageUrl,
@@ -29,6 +31,7 @@ class UserModel {
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
+      location: data['location'] ?? '',
       latitude: data['latitude']?.toDouble(),
       longitude: data['longitude']?.toDouble(),
       profileImageUrl: data['profileImageUrl'] ?? '',
@@ -46,6 +49,7 @@ class UserModel {
       'name': name,
       'email': email,
       'phone': phone,
+      'location': location,
       'latitude': latitude,
       'longitude': longitude,
       'profileImageUrl': profileImageUrl,

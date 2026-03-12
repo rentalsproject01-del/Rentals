@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/core/utils/validators.dart';
+import 'package:rentals/views/rent/location_picker_page.dart';
 
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
@@ -25,6 +27,8 @@ class _EditProfileState extends State<EditProfile> {
   String? _networkImageUrl;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -35,23 +39,58 @@ class _EditProfileState extends State<EditProfile> {
   // --- LOAD EXISTING USER DATA ---
   void _loadUserData() async {
     try {
-      // Listen to the stream once to populate initial values
-      final userData = await UserService.getUserProfileStream().first;
+      final userData = await UserService.getCurrentUserProfile();
 
       if (userData != null && mounted) {
         setState(() {
           _nameController.text = userData['name'] ?? '';
-          _emailController.text = userData['email'] ?? '';
+          _emailController.text =
+              userData['email'] ?? UserService.getCurrentUserEmail();
           _phoneController.text = userData['phone'] ?? '';
-          // Firestore stores lat/lng, so we show a placeholder or mapped value
-          _locationController.text = (userData['latitude'] != null)
-              ? 'Location Set'
-              : '';
+          _latitude = userData['latitude'] as double?;
+          _longitude = userData['longitude'] as double?;
+          _locationController.text = UserService.getLocationLabel(
+            location: userData['location']?.toString(),
+            latitude: _latitude,
+            longitude: _longitude,
+          );
           _networkImageUrl = userData['profileImageUrl'];
+        });
+      } else if (mounted) {
+        setState(() {
+          _emailController.text = UserService.getCurrentUserEmail();
         });
       }
     } catch (e) {
       debugPrint("Failed to load user data: $e");
+    }
+  }
+
+  Future<void> _pickLocation() async {
+    FocusScope.of(context).unfocus();
+
+    LatLng? initialPoint;
+    if (_latitude != null && _longitude != null) {
+      initialPoint = LatLng(_latitude!, _longitude!);
+    }
+
+    final LatLng? pickedLocation = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerPage(initialLocation: initialPoint),
+      ),
+    );
+
+    if (pickedLocation != null && mounted) {
+      setState(() {
+        _latitude = pickedLocation.latitude;
+        _longitude = pickedLocation.longitude;
+        _locationController.text = UserService.getLocationLabel(
+          location: _locationController.text,
+          latitude: _latitude,
+          longitude: _longitude,
+        );
+      });
     }
   }
 
@@ -77,6 +116,7 @@ class _EditProfileState extends State<EditProfile> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to pick image: $e")));
@@ -102,18 +142,25 @@ class _EditProfileState extends State<EditProfile> {
       return;
     }
 
+    if (_latitude == null || _longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select your location.")),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       String? uploadedImageUrl;
+      final user = FirebaseAuth.instance.currentUser;
 
       // 1. Upload new image if selected
       if (_imageFile != null) {
-        final uid = FirebaseAuth.instance.currentUser?.uid;
+        final uid = user?.uid;
         if (uid != null) {
-          // Improved Firebase Storage upload path to prevent cache issues
           Reference ref = FirebaseStorage.instance.ref().child(
-            'profile_images/$uid/profile.jpg',
+            'profile_images/$uid.jpg',
           );
 
           await ref.putFile(_imageFile!);
@@ -125,9 +172,15 @@ class _EditProfileState extends State<EditProfile> {
       await UserService.updateUserProfile(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
-        profileImageUrl:
-            uploadedImageUrl, // Only updates if a new one was uploaded
+        location: _locationController.text.trim(),
+        profileImageUrl: uploadedImageUrl,
+        latitude: _latitude,
+        longitude: _longitude,
       );
+
+      if (user != null) {
+        await user.updateDisplayName(_nameController.text.trim());
+      }
 
       // 3. Success Behavior
       if (mounted) {
@@ -140,6 +193,7 @@ class _EditProfileState extends State<EditProfile> {
         Navigator.pop(context);
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error updating profile: ${e.toString()}"),
@@ -248,13 +302,14 @@ class _EditProfileState extends State<EditProfile> {
                           ),
                           const SizedBox(height: 30),
 
-                          // Location Field (Read Only, typically updated via Map)
+                          // Location Field
                           _buildInputField(
                             label: 'Location',
-                            hint: 'Enter your Location',
+                            hint: 'Tap to select location',
                             iconAsset: 'assets/icons/location_icon.png',
                             controller: _locationController,
-                            enabled: false,
+                            readOnly: true,
+                            onTap: _pickLocation,
                           ),
                           const SizedBox(height: 30),
 
@@ -338,6 +393,8 @@ class _EditProfileState extends State<EditProfile> {
     required String iconAsset,
     required TextEditingController controller,
     bool enabled = true,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,6 +417,8 @@ class _EditProfileState extends State<EditProfile> {
         TextField(
           controller: controller,
           enabled: enabled,
+          readOnly: readOnly,
+          onTap: onTap,
           // Ensuring disabled text color is grey
           style: TextStyle(
             color: enabled ? const Color(0xFF113F67) : Colors.grey,

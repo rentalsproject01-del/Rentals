@@ -10,6 +10,7 @@ import 'package:rentals/views/auth/login_page.dart';
 import 'package:rentals/views/profile/account_setup_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/chat/chat_room_page.dart'; // Added chat room import
+import 'package:rentals/services/user_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -243,11 +244,18 @@ class _AuthGateState extends State<AuthGate> {
               );
             }
 
-            if (firestoreSnapshot.hasData && firestoreSnapshot.data!.exists) {
+            final Map<String, dynamic>? userData =
+                firestoreSnapshot.hasData && firestoreSnapshot.data!.data() != null
+                ? Map<String, dynamic>.from(
+                    firestoreSnapshot.data!.data() as Map<String, dynamic>,
+                  )
+                : null;
+
+            if (UserService.isProfileComplete(userData)) {
               return const Navbar();
-            } else {
-              return const AccountSetupPage();
             }
+
+            return const AccountSetupPage();
           },
         );
       },

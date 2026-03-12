@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../widgets/loading_widget.dart';
@@ -9,6 +10,7 @@ import 'like_page.dart';
 import '../product/product_page.dart';
 
 import '../../services/user_service.dart';
+import '../../services/rental_service.dart';
 import '../../services/transaction_service.dart';
 import '../../models/transaction_model.dart';
 
@@ -22,6 +24,7 @@ class AccPage extends StatefulWidget {
 class _AccPageState extends State<AccPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool isHostView = true;
+  String? _deletingRentalId;
 
   @override
   Widget build(BuildContext context) {
@@ -115,21 +118,24 @@ class _AccPageState extends State<AccPage> {
           StreamBuilder<Map<String, dynamic>?>(
             stream: UserService.getUserProfileStream(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting)
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
                   padding: EdgeInsets.all(20.0),
                   child: LoadingWidget(),
                 );
-              if (snapshot.hasError)
+              }
+              if (snapshot.hasError) {
                 return const Text(
                   "Error loading profile",
                   style: TextStyle(color: Colors.redAccent),
                 );
-              if (!snapshot.hasData || snapshot.data == null)
+              }
+              if (!snapshot.hasData || snapshot.data == null) {
                 return const Text(
                   "Profile not found",
                   style: TextStyle(color: AppColors.white),
                 );
+              }
 
               var userData = snapshot.data!;
               String name = userData['name'] ?? 'Unknown User';
@@ -270,27 +276,83 @@ class _AccPageState extends State<AccPage> {
   }
 
   Widget _buildDynamicList(bool isHost) {
-    return StreamBuilder<List<TransactionModel>>(
-      stream: isHost
-          ? TransactionService.getUserHosts()
-          : TransactionService.getUserRents(),
+    if (isHost) {
+      return _buildHostedListings();
+    }
+
+    return _buildRentedListings();
+  }
+
+  Widget _buildHostedListings() {
+    final String? uid = UserService.getCurrentUserId();
+    if (uid == null) {
+      return const Center(
+        child: Text(
+          "No items hosted yet.",
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: RentalService.getRentalsForOwner(uid),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingWidget();
-        if (snapshot.hasError)
+        }
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              "Error loading hosted items.",
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              "No items hosted yet.",
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
+        final items = snapshot.data!;
+        return ListView.separated(
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
+          itemCount: items.length,
+          separatorBuilder: (context, index) =>
+              const Divider(color: Color(0xFF9FA1A2), thickness: 1.5),
+          itemBuilder: (context, index) =>
+              _buildHostedListItem(context, items[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildRentedListings() {
+    return StreamBuilder<List<TransactionModel>>(
+      stream: TransactionService.getUserRents(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LoadingWidget();
+        }
+        if (snapshot.hasError) {
           return const Center(
             child: Text(
               "Error loading transactions.",
               style: TextStyle(color: Colors.redAccent),
             ),
           );
-        if (!snapshot.hasData || snapshot.data!.isEmpty)
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Center(
             child: Text(
-              isHost ? "No items hosted yet." : "No items rented yet.",
+              "No items rented yet.",
               style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
           );
+        }
 
         final items = snapshot.data!;
         return ListView.separated(
@@ -301,6 +363,139 @@ class _AccPageState extends State<AccPage> {
           itemBuilder: (context, index) => _buildListItem(items[index]),
         );
       },
+    );
+  }
+
+  Widget _buildHostedListItem(
+    BuildContext context,
+    Map<String, dynamic> hostedItem,
+  ) {
+    final String rentalId =
+        hostedItem['id']?.toString() ??
+        hostedItem['rentalId']?.toString() ??
+        '';
+    final String imageUrl = _extractHostedImage(hostedItem);
+    final String title = hostedItem['title']?.toString() ?? 'Unknown Item';
+    final String subtitle =
+        hostedItem['subtitle']?.toString().trim().isNotEmpty == true
+        ? hostedItem['subtitle'].toString().trim()
+        : hostedItem['subcategory']?.toString().trim().isNotEmpty == true
+        ? hostedItem['subcategory'].toString().trim()
+        : hostedItem['category']?.toString().trim() ?? 'Hosted listing';
+    final String createdLabel = _formatHostedDate(hostedItem['createdAt']);
+    final String price = hostedItem['price']?.toString() ?? '0';
+    final bool isDeleting = _deletingRentalId == rentalId;
+
+    return GestureDetector(
+      onTap: isDeleting
+          ? null
+          : () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductPage(productData: hostedItem),
+              ),
+            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      width: 140,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => _buildPlaceholder(),
+                      errorWidget: (context, url, error) => _buildPlaceholder(),
+                    )
+                  : _buildPlaceholder(),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    createdLabel,
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Rs. $price',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: isDeleting || rentalId.isEmpty
+                          ? null
+                          : () => _confirmDeleteHostedItem(hostedItem),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: isDeleting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.redAccent,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Colors.redAccent,
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -429,4 +624,117 @@ class _AccPageState extends State<AccPage> {
       child: Icon(Icons.image_not_supported, color: Colors.grey),
     ),
   );
+
+  String _extractHostedImage(Map<String, dynamic> hostedItem) {
+    final imageUrls = hostedItem['imageUrls'];
+
+    if (imageUrls is List) {
+      for (final image in imageUrls) {
+        final url = image?.toString().trim() ?? '';
+        if (url.isNotEmpty) {
+          return url;
+        }
+      }
+    }
+
+    if (imageUrls is String && imageUrls.trim().isNotEmpty) {
+      return imageUrls.trim();
+    }
+
+    return '';
+  }
+
+  String _formatHostedDate(dynamic createdAt) {
+    if (createdAt is Timestamp) {
+      final DateTime date = createdAt.toDate();
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return "${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}";
+    }
+
+    return 'Hosted listing';
+  }
+
+  Future<void> _confirmDeleteHostedItem(Map<String, dynamic> hostedItem) async {
+    final rentalId =
+        hostedItem['id']?.toString() ??
+        hostedItem['rentalId']?.toString() ??
+        '';
+    final title = hostedItem['title']?.toString() ?? 'this item';
+
+    if (rentalId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This item cannot be deleted right now.')),
+      );
+      return;
+    }
+
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Item'),
+          content: Text(
+            'Are you sure you want to delete "$title"? This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    setState(() => _deletingRentalId = rentalId);
+
+    try {
+      await RentalService.deleteRentalIfAllowed(rentalId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hosted item deleted successfully.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deletingRentalId = null);
+      }
+    }
+  }
 }

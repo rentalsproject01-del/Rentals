@@ -144,6 +144,65 @@ class _RentPageState extends State<RentPage> {
     }
   }
 
+  Future<void> _showTopSuccessBanner(String message) async {
+    if (!mounted) return;
+
+    final overlay = Overlay.of(context);
+    final topInset = MediaQuery.of(context).padding.top;
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: topInset + 12,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF113F67),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF16BCE6),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+    await Future.delayed(const Duration(milliseconds: 1100));
+    overlayEntry.remove();
+  }
+
   // --- UPLOAD & SAVE LOGIC ---
   Future<void> _uploadAndSaveItem() async {
     FocusScope.of(context).unfocus();
@@ -186,18 +245,14 @@ class _RentPageState extends State<RentPage> {
         images: _selectedImages,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Item uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      if (!mounted) return;
 
-        // MODIFIED: Pop the screen and return to Home instead of resetting fields
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        }
+      setState(() => _isUploading = false);
+      await _showTopSuccessBanner('Item uploaded successfully!');
+
+      if (!mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -209,7 +264,9 @@ class _RentPageState extends State<RentPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isUploading = false);
+      if (mounted && _isUploading) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 

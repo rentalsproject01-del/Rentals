@@ -6,6 +6,13 @@ import 'package:rentals/models/transaction_model.dart';
 class TransactionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const Set<String> _blockingStatuses = {
+    'pending',
+    'accepted',
+    'approved',
+    'active',
+    'ongoing',
+  };
 
   static String _formatDate(DateTime date) {
     const months = [
@@ -186,5 +193,28 @@ class TransactionService {
       'status': 'Rejected',
       'rejectedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  getTransactionsForRental(String rentalId) async {
+    final snapshot = await _firestore
+        .collection('transactions')
+        .where('rentalId', isEqualTo: rentalId)
+        .get();
+
+    return snapshot.docs;
+  }
+
+  static Future<bool> hasBlockingTransactionsForRental(String rentalId) async {
+    final docs = await getTransactionsForRental(rentalId);
+
+    for (final doc in docs) {
+      final status = doc.data()['status']?.toString().trim().toLowerCase() ?? '';
+      if (_blockingStatuses.contains(status)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

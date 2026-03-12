@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/views/home/home_page.dart';
+import 'package:rentals/views/search/search_page.dart';
 
 class CategoryPage extends StatefulWidget {
   final String categoryName;
@@ -125,6 +126,13 @@ class _CategoryPageState extends State<CategoryPage> {
   List<String> get currentSubCategories =>
       categorySubMap[widget.categoryName] ?? ['All', 'Other'];
 
+  void _openSearchScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SearchPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,7 +194,7 @@ class _CategoryPageState extends State<CategoryPage> {
           const SizedBox(height: 15),
           Row(
             children: [
-              const Expanded(child: AnimatedSearchBar()),
+              Expanded(child: AnimatedSearchBar(onTap: _openSearchScreen)),
               const SizedBox(width: 20),
               Image.asset(
                 'assets/icons/like_icon.png',

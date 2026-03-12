@@ -28,6 +28,7 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
 
   // --- STATE VARIABLES ---
   File? _imageFile;
+  String? _networkImageUrl;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -37,11 +38,45 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill fields if data exists in FirebaseAuth
+    _prefillProfileData();
+  }
+
+  Future<void> _prefillProfileData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      if (user.displayName != null) nameController.text = user.displayName!;
-      if (user.email != null) emailController.text = user.email!;
+      if (user.displayName != null) {
+        nameController.text = user.displayName!;
+      }
+      if (user.email != null) {
+        emailController.text = user.email!;
+      }
+    }
+
+    try {
+      final userData = await UserService.getCurrentUserProfile();
+      if (userData == null || !mounted) return;
+
+      setState(() {
+        nameController.text =
+            userData['name']?.toString().trim().isNotEmpty == true
+            ? userData['name'].toString().trim()
+            : nameController.text;
+        emailController.text =
+            userData['email']?.toString().trim().isNotEmpty == true
+            ? userData['email'].toString().trim()
+            : emailController.text;
+        phoneController.text = userData['phone']?.toString().trim() ?? '';
+        _latitude = userData['latitude'] as double?;
+        _longitude = userData['longitude'] as double?;
+        locationController.text = UserService.getLocationLabel(
+          location: userData['location']?.toString(),
+          latitude: _latitude,
+          longitude: _longitude,
+        );
+        _networkImageUrl = userData['profileImageUrl']?.toString().trim();
+      });
+    } catch (e) {
+      debugPrint('Failed to prefill account setup data: $e');
     }
   }
 
@@ -125,7 +160,11 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
       setState(() {
         _latitude = pickedLocation.latitude;
         _longitude = pickedLocation.longitude;
-        locationController.text = "Location Selected";
+        locationController.text = UserService.getLocationLabel(
+          location: locationController.text,
+          latitude: _latitude,
+          longitude: _longitude,
+        );
       });
     }
   }
@@ -163,7 +202,7 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
         return;
       }
 
-      String imageUrl = "";
+      String imageUrl = _networkImageUrl ?? '';
 
       // 3. Upload Image if selected
       if (_imageFile != null) {
@@ -178,8 +217,9 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
       // 4. Save to Firestore using UserService
       await UserService.createUserProfile(
         name: nameController.text.trim(),
-        email: user.email ?? "",
+        email: emailController.text.trim(),
         phone: phone,
+        location: locationController.text.trim(),
         latitude: _latitude!,
         longitude: _longitude!,
         profileImageUrl: imageUrl,
@@ -338,8 +378,12 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
               backgroundColor: const Color(0xFFF0F0F0),
               backgroundImage: _imageFile != null
                   ? FileImage(_imageFile!)
+                  : (_networkImageUrl != null && _networkImageUrl!.isNotEmpty)
+                  ? NetworkImage(_networkImageUrl!)
                   : null,
-              child: _imageFile == null
+              child:
+                  _imageFile == null &&
+                      (_networkImageUrl == null || _networkImageUrl!.isEmpty)
                   ? const Icon(Icons.person, size: 50, color: Color(0xFF113F67))
                   : null,
             ),

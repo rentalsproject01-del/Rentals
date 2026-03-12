@@ -4,8 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
 import 'package:rentals/views/product/product_page.dart';
-import 'package:rentals/views/map/map_page.dart';
-import 'near_me_page.dart';
+import 'package:rentals/views/search/search_page.dart';
 import 'package:rentals/category_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/favorites_service.dart';
@@ -94,6 +93,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _openSearchScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SearchPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,7 +112,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildTopHeader(),
                 const SizedBox(height: 12),
-                const AnimatedSearchBar(),
+                AnimatedSearchBar(onTap: _openSearchScreen),
                 const SizedBox(height: 12),
                 _buildCategoryList(),
               ],
@@ -787,7 +793,9 @@ class _HomePageState extends State<HomePage> {
 }
 
 class AnimatedSearchBar extends StatefulWidget {
-  const AnimatedSearchBar({super.key});
+  final VoidCallback? onTap;
+
+  const AnimatedSearchBar({super.key, this.onTap});
 
   @override
   State<AnimatedSearchBar> createState() => _AnimatedSearchBarState();
@@ -866,35 +874,39 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: Row(
-              children: [
-                Image.asset(
-                  "assets/icons/search_icon.png",
-                  height: 20,
-                  errorBuilder: (c, e, s) => const Icon(
-                    Icons.search,
-                    size: 20,
-                    color: Color(0xFF113F67),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _displayedText,
-                    style: const TextStyle(
+          child: GestureDetector(
+            onTap: widget.onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Row(
+                children: [
+                  Image.asset(
+                    "assets/icons/search_icon.png",
+                    height: 20,
+                    errorBuilder: (c, e, s) => const Icon(
+                      Icons.search,
+                      size: 20,
                       color: Color(0xFF113F67),
-                      fontSize: 16,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _displayedText,
+                      style: const TextStyle(
+                        color: Color(0xFF113F67),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

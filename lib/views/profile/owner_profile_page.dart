@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,7 +24,19 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
     _ownerProfileFuture = UserService.getUserById(widget.ownerId);
   }
 
+  void _showUnavailableMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _launchPhone(String phone) async {
+    if (phone.trim().isEmpty) {
+      _showUnavailableMessage('Phone number is unavailable.');
+      return;
+    }
+
     final String sanitizedPhone = phone
         .replaceAll(' ', '')
         .replaceAll('-', '')
@@ -36,34 +47,46 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
 
     try {
       if (!await launchUrl(uri)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open dialer.')));
+        _showUnavailableMessage('Could not open dialer.');
       }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open dialer.')));
+      _showUnavailableMessage('Could not open dialer.');
     }
   }
 
   Future<void> _launchEmail(String email) async {
+    if (email.trim().isEmpty) {
+      _showUnavailableMessage('Email address is unavailable.');
+      return;
+    }
+
     final Uri uri = Uri(scheme: 'mailto', path: email);
 
     try {
       if (!await launchUrl(uri)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open email app.')),
-        );
+        _showUnavailableMessage('Could not open email app.');
       }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open email app.')),
-      );
+      _showUnavailableMessage('Could not open email app.');
+    }
+  }
+
+  Future<void> _launchLocation(double? latitude, double? longitude) async {
+    if (latitude == null || longitude == null) {
+      _showUnavailableMessage('Location is unavailable.');
+      return;
+    }
+
+    final Uri uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+    );
+
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        _showUnavailableMessage('Could not open maps.');
+      }
+    } catch (_) {
+      _showUnavailableMessage('Could not open maps.');
     }
   }
 
@@ -106,22 +129,67 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
   Widget _buildGradientIconButton({
     required IconData icon,
     required VoidCallback onTap,
+    required String label,
+    bool isEnabled = true,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.bottomLeft,
-            end: Alignment.topRight,
-            colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)],
+      child: Opacity(
+        opacity: isEnabled ? 1 : 0.55,
+        child: Column(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                  colors: [Color(0xFF16BCE6), Color(0xFF00A2FF)],
+                ),
+              ),
+              child: Center(child: Icon(icon, color: Colors.white, size: 20)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF113F67),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String value,
+    required String fallback,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF16BCE6), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value.isNotEmpty ? value : fallback,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: value.isNotEmpty
+                  ? const Color(0xFF113F67)
+                  : const Color(0xFF6F7172),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
-        child: Center(child: Icon(icon, color: Colors.white, size: 20)),
-      ),
+      ],
     );
   }
 
@@ -200,8 +268,8 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
   }
 
   Widget _buildOwnerRentalsList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: RentalService.getUserRentals(widget.ownerId),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: RentalService.getRentalsForOwner(widget.ownerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
@@ -224,7 +292,7 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(30),
             child: Center(
@@ -240,18 +308,17 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
           );
         }
 
-        final docs = snapshot.data!.docs;
+        final items = snapshot.data!;
 
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
-          itemCount: docs.length,
+          itemCount: items.length,
           itemBuilder: (context, index) {
             final Map<String, dynamic> data = Map<String, dynamic>.from(
-              docs[index].data() as Map<String, dynamic>,
+              items[index],
             );
-            data['id'] = docs[index].id;
 
             final String title = data['title']?.toString() ?? 'Unknown Item';
             final String subtitle =
@@ -339,7 +406,7 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
                       ],
                     ),
                   ),
-                  if (index == docs.length - 1)
+                  if (index == items.length - 1)
                     const Divider(
                       color: Color(0xFF9FA1A2),
                       thickness: 1,
@@ -379,6 +446,13 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
             ownerData['profileImageUrl']?.toString() ?? '';
         final String phone = ownerData['phone']?.toString() ?? '';
         final String email = ownerData['email']?.toString() ?? '';
+        final double? latitude = ownerData['latitude'] as double?;
+        final double? longitude = ownerData['longitude'] as double?;
+        final String locationLabel = UserService.getLocationLabel(
+          location: ownerData['location']?.toString(),
+          latitude: latitude,
+          longitude: longitude,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFF113F67),
@@ -545,25 +619,77 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
                                           ),
                                         ),
                                       ],
+                                      const SizedBox(height: 8),
+                                      _buildInfoRow(
+                                        icon: Icons.phone_outlined,
+                                        value: phone,
+                                        fallback: 'Phone not shared',
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _buildInfoRow(
+                                        icon: Icons.email_outlined,
+                                        value: email,
+                                        fallback: 'Email not shared',
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _buildInfoRow(
+                                        icon: Icons.location_on_outlined,
+                                        value: locationLabel,
+                                        fallback: 'Location not shared',
+                                      ),
                                     ],
                                   ),
                                 ),
-                                if (email.isNotEmpty)
-                                  _buildGradientIconButton(
-                                    icon: Icons.email_rounded,
-                                    onTap: () => _launchEmail(email),
-                                  ),
-                                if (email.isNotEmpty && phone.isNotEmpty)
-                                  const SizedBox(width: 10),
-                                if (phone.isNotEmpty)
-                                  _buildGradientIconButton(
-                                    icon: Icons.phone_rounded,
-                                    onTap: () => _launchPhone(phone),
-                                  ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 18),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 35),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildGradientIconButton(
+                                  icon: Icons.phone_rounded,
+                                  label: 'Call',
+                                  isEnabled: phone.isNotEmpty,
+                                  onTap: () => _launchPhone(phone),
+                                ),
+                                _buildGradientIconButton(
+                                  icon: Icons.email_rounded,
+                                  label: 'Email',
+                                  isEnabled: email.isNotEmpty,
+                                  onTap: () => _launchEmail(email),
+                                ),
+                                _buildGradientIconButton(
+                                  icon: Icons.location_on_rounded,
+                                  label: 'Location',
+                                  isEnabled:
+                                      latitude != null && longitude != null,
+                                  onTap: () => _launchLocation(
+                                    latitude,
+                                    longitude,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Uploaded Items',
+                                style: TextStyle(
+                                  color: Color(0xFF113F67),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           _buildOwnerRentalsList(),
                           const SizedBox(height: 30),
                         ],

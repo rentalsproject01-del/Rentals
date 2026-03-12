@@ -96,7 +96,7 @@ class ChatService {
     required String ownerId,
     required String renterId,
   }) {
-    return '${itemId}_${ownerId}_${renterId}';
+    return [itemId, ownerId, renterId].join('_');
   }
 
   /// Creates a new chat room if it doesn't exist, or returns the existing room ID.
@@ -245,5 +245,43 @@ class ChatService {
       return Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
     }
     return null;
+  }
+
+  static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  getChatRoomsForItem(String rentalId) async {
+    final snapshot = await _firestore
+        .collection('chat_rooms')
+        .where('itemId', isEqualTo: rentalId)
+        .get();
+
+    return snapshot.docs;
+  }
+
+  static Future<void> deleteChatRoomsAndMessagesForItem(
+    String rentalId, {
+    WriteBatch? batch,
+  }) async {
+    final roomDocs = await getChatRoomsForItem(rentalId);
+    if (roomDocs.isEmpty) {
+      return;
+    }
+
+    final WriteBatch deletionBatch = batch ?? _firestore.batch();
+    final Map<String, Object?> rtdbDeletes = {};
+
+    for (final roomDoc in roomDocs) {
+      deletionBatch.delete(roomDoc.reference);
+      final roomId = roomDoc.id;
+      rtdbDeletes['messages/$roomId'] = null;
+      rtdbDeletes['typing/$roomId'] = null;
+    }
+
+    if (rtdbDeletes.isNotEmpty) {
+      await _db.ref().update(rtdbDeletes);
+    }
+
+    if (batch == null) {
+      await deletionBatch.commit();
+    }
   }
 }
