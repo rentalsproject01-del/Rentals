@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/services/transaction_service.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_room_page.dart';
-import 'package:rentals/views/home/home_page.dart';
 import 'package:rentals/views/profile/owner_profile_page.dart';
+import 'package:rentals/views/product/widgets/product_image_gallery.dart';
+import 'package:rentals/views/product/widgets/product_owner_section.dart';
+import 'package:rentals/views/product/widgets/product_request_bar.dart';
+import 'package:rentals/widgets/animated_like_button.dart';
 
 class ProductPage extends StatefulWidget {
   final Map<String, dynamic> productData;
@@ -331,77 +333,12 @@ class _ProductPageState extends State<ProductPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  height: 380,
-                  width: double.infinity,
-                  child: Stack(
-                    children: [
-                      images.isNotEmpty
-                          ? PageView.builder(
-                              itemCount: images.length,
-                              onPageChanged: (index) {
-                                setState(() => _currentImageIndex = index);
-                              },
-                              itemBuilder: (context, index) {
-                                return CachedNetworkImage(
-                                  imageUrl: images[index],
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  placeholder: (context, url) => Container(
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Color(0xFF16BCE6),
-                                      ),
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      Container(
-                                        color: Colors.grey[200],
-                                        child: const Icon(
-                                          Icons.broken_image,
-                                          size: 50,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                );
-                              },
-                            )
-                          : Container(
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  size: 60,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                      if (images.length > 1)
-                        Positioned(
-                          bottom: 20,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              images.length,
-                              (index) => Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                width: _currentImageIndex == index ? 22 : 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: _currentImageIndex == index
-                                      ? const Color(0xFF113F67)
-                                      : Colors.white.withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  child: ProductImageGallery(
+                    images: images,
+                    currentImageIndex: _currentImageIndex,
+                    onPageChanged: (index) {
+                      setState(() => _currentImageIndex = index);
+                    },
                   ),
                 ),
                 Padding(
@@ -542,120 +479,14 @@ class _ProductPageState extends State<ProductPage> {
                       const SizedBox(height: 25),
                       const Divider(color: Color(0xFFEEEEEE), thickness: 1.5),
                       const SizedBox(height: 15),
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: _openOwnerProfile,
-                            child: ClipOval(
-                              child: _ownerImage.isNotEmpty
-                                  ? CachedNetworkImage(
-                                      imageUrl: _ownerImage,
-                                      width: 55,
-                                      height: 55,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(
-                                        color: Colors.grey[200],
-                                        width: 55,
-                                        height: 55,
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(14.0),
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF16BCE6),
-                                          ),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) =>
-                                          _buildAvatarPlaceholder(),
-                                    )
-                                  : _buildAvatarPlaceholder(),
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _openOwnerProfile,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Owner",
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  _isLoadingOwner
-                                      ? const SizedBox(
-                                          height: 14,
-                                          width: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF113F67),
-                                          ),
-                                        )
-                                      : Text(
-                                          _ownerName,
-                                          style: const TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF113F67),
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF16BCE6,
-                              ).withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              onPressed: _handleCallSeller,
-                              icon: const Icon(
-                                Icons.call_outlined,
-                                color: Color(0xFF16BCE6),
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF16BCE6,
-                              ).withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              onPressed: _isOpeningChat
-                                  ? null
-                                  : _handleOpenChat,
-                              icon: _isOpeningChat
-                                  ? const SizedBox(
-                                      height: 22,
-                                      width: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Color(0xFF16BCE6),
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.chat_bubble_outline,
-                                      color: Color(0xFF16BCE6),
-                                      size: 22,
-                                    ),
-                            ),
-                          ),
-                        ],
+                      ProductOwnerSection(
+                        ownerImage: _ownerImage,
+                        ownerName: _ownerName,
+                        isLoadingOwner: _isLoadingOwner,
+                        isOpeningChat: _isOpeningChat,
+                        onOpenOwnerProfile: _openOwnerProfile,
+                        onCallSeller: _handleCallSeller,
+                        onOpenChat: _handleOpenChat,
                       ),
                       const SizedBox(height: 15),
                       const Divider(color: Color(0xFFEEEEEE), thickness: 1.5),
@@ -713,74 +544,13 @@ class _ProductPageState extends State<ProductPage> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 55,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF113F67), Color(0xFF217DCD)],
-                        ),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: _isRequesting ? null : _handleSendRequest,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                        child: _isRequesting
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
-                                "Send Request",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: ProductRequestBar(
+              isRequesting: _isRequesting,
+              onSendRequest: _handleSendRequest,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildAvatarPlaceholder() {
-    return Container(
-      width: 55,
-      height: 55,
-      color: Colors.grey[200],
-      child: const Icon(Icons.person, color: Colors.grey, size: 30),
     );
   }
 }

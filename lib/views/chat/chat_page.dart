@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_room_page.dart';
+import 'package:rentals/views/chat/widgets/chat_list_tile.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -193,7 +192,6 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildChatTile(Map<String, dynamic> data) {
-    // 1. Safely read fields
     final String ownerId = data['ownerId']?.toString() ?? '';
     final String ownerName = data['ownerName']?.toString() ?? 'Unknown Owner';
     final String ownerImage = data['ownerImage']?.toString() ?? '';
@@ -209,13 +207,20 @@ class _ChatPageState extends State<ChatPage> {
     final Timestamp? lastMessageTime = data['lastMessageTime'] as Timestamp?;
     final String chatRoomId = data['chatRoomId']?.toString() ?? '';
 
-    // 2. Determine "Other User"
     final bool isOwner = currentUserId == ownerId;
     final String otherUserId = isOwner ? renterId : ownerId;
     final String otherUserName = isOwner ? renterName : ownerName;
     final String otherUserImage = isOwner ? renterImage : ownerImage;
 
-    return InkWell(
+    return ChatListTile(
+      chatRoomId: chatRoomId,
+      otherUserId: otherUserId,
+      otherUserName: otherUserName,
+      otherUserImage: otherUserImage,
+      itemTitle: itemTitle,
+      itemImage: itemImage,
+      lastMessage: lastMessage,
+      formattedTime: _formatTime(lastMessageTime),
       onTap: () {
         _openChatRoom(
           chatRoomId: chatRoomId,
@@ -226,190 +231,6 @@ class _ChatPageState extends State<ChatPage> {
           fallbackItemImage: itemImage,
         );
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          children: [
-            // --- OTHER USER AVATAR WITH ONLINE STATUS ---
-            Stack(
-              children: [
-                ClipOval(
-                  child: otherUserImage.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: otherUserImage,
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              _buildAvatarPlaceholder(),
-                          errorWidget: (context, url, error) =>
-                              _buildAvatarPlaceholder(),
-                        )
-                      : _buildAvatarPlaceholder(),
-                ),
-                Positioned(
-                  bottom: 2,
-                  right: 2,
-                  child: StreamBuilder<DatabaseEvent>(
-                    stream: ChatService.getUserStatusStream(otherUserId),
-                    builder: (context, statusSnapshot) {
-                      bool isOnline = false;
-                      if (statusSnapshot.hasData &&
-                          statusSnapshot.data!.snapshot.value != null) {
-                        final statusData = statusSnapshot.data!.snapshot.value;
-                        if (statusData is Map) {
-                          isOnline = statusData['isOnline'] == true;
-                        }
-                      }
-
-                      if (!isOnline) return const SizedBox.shrink();
-
-                      return Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.greenAccent[400],
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 15),
-
-            // --- CHAT DETAILS ---
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          otherUserName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF113F67),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _formatTime(lastMessageTime),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    itemTitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF16BCE6),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  StreamBuilder<DatabaseEvent>(
-                    stream: ChatService.getTypingStatusStream(
-                      chatRoomId,
-                      otherUserId,
-                    ),
-                    builder: (context, typingSnapshot) {
-                      bool isTyping = false;
-                      if (typingSnapshot.hasData &&
-                          typingSnapshot.data!.snapshot.value != null) {
-                        final typingData = typingSnapshot.data!.snapshot.value;
-                        if (typingData is Map) {
-                          isTyping = typingData['isTyping'] == true;
-                        }
-                      }
-
-                      if (isTyping) {
-                        return const Text(
-                          'Typing...',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      }
-
-                      return Text(
-                        lastMessage.isNotEmpty
-                            ? lastMessage
-                            : 'Start the conversation',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: lastMessage.isNotEmpty
-                              ? Colors.black87
-                              : Colors.grey.shade400,
-                          fontStyle: lastMessage.isEmpty
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // --- OPTIONAL ITEM THUMBNAIL ---
-            if (itemImage.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: itemImage,
-                  width: 45,
-                  height: 45,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      Container(width: 45, height: 45, color: Colors.grey[200]),
-                  errorWidget: (context, url, error) => Container(
-                    width: 45,
-                    height: 45,
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.image,
-                      size: 20,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatarPlaceholder() {
-    return Container(
-      width: 52,
-      height: 52,
-      color: Colors.grey[200],
-      child: const Icon(Icons.person, color: Colors.grey, size: 26),
     );
   }
 }

@@ -160,11 +160,22 @@ exports.onChatMessageCreated = onValueCreated(
       const msgData = event.data.val();
       if (!msgData) return;
 
-      const { senderId, receiverId, text } = msgData;
+      const { senderId, receiverId, text, messageType, imageUrl } = msgData;
       const chatRoomId = event.params.chatRoomId;
 
-      if (!senderId || !receiverId || !text) {
-        return; // Missing required fields
+      if (!senderId || !receiverId) {
+        return;
+      }
+
+      const isImageMessage =
+        messageType === "image" ||
+        (typeof imageUrl === "string" && imageUrl.trim() !== "");
+      const notificationBody = isImageMessage ?
+        "📷 Sent an image" :
+        (typeof text === "string" ? text.trim() : "");
+
+      if (!notificationBody) {
+        return;
       }
 
       // Fetch chat room metadata from Firestore
@@ -200,13 +211,14 @@ exports.onChatMessageCreated = onValueCreated(
         otherUserImage: senderImage,
         itemTitle: roomData.itemTitle || "Item Inquiry",
         itemImage: roomData.itemImage || "",
+        messageType: messageType || (isImageMessage ? "image" : "text"),
       };
 
       // Send the push notification to the receiver
       await sendPushToUser(
         receiverId,
         senderName,
-        text,
+        notificationBody,
         payloadData
       );
 

@@ -1,15 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart' hide Query;
 import 'package:firebase_database/firebase_database.dart' as rtdb show Query;
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseDatabase _db = FirebaseDatabase.instance;
+  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static StreamSubscription<DatabaseEvent>? _presenceSubscription;
+
+  static const String textMessageType = 'text';
+  static const String imageMessageType = 'image';
 
   /// Returns the current authenticated user's UID.
   static String? getCurrentUserId() {
@@ -201,33 +207,94 @@ class ChatService {
     required String text,
     required String receiverId,
   }) async {
+    final String trimmedText = text.trim();
+    if (trimmedText.isEmpty) return;
+
+    await _sendChatMessage(
+      chatRoomId: chatRoomId,
+      receiverId: receiverId,
+      messageType: textMessageType,
+      text: trimmedText,
+      imageUrl: '',
+      roomPreview: trimmedText,
+    );
+  }
+
+  static Future<void> sendImageMessage({
+    required String chatRoomId,
+    required File imageFile,
+    required String receiverId,
+  }) async {
+    final String imageUrl = await _uploadChatImage(
+      chatRoomId: chatRoomId,
+      imageFile: imageFile,
+    );
+
+    await _sendChatMessage(
+      chatRoomId: chatRoomId,
+      receiverId: receiverId,
+      messageType: imageMessageType,
+      text: '',
+      imageUrl: imageUrl,
+      roomPreview: '📷 Image',
+    );
+  }
+
+  static Future<String> _uploadChatImage({
+    required String chatRoomId,
+    required File imageFile,
+  }) async {
     final String? currentUserId = getCurrentUserId();
     if (currentUserId == null) {
       throw Exception('User is not authenticated.');
     }
 
-    final String trimmedText = text.trim();
-    if (trimmedText.isEmpty) return;
+    final String fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_$currentUserId.jpg';
+    final Reference ref = _storage.ref().child(
+      'chat_images/$chatRoomId/$fileName',
+    );
 
-    // 1. Add message to the Realtime Database
+    final TaskSnapshot uploadTask = await ref.putFile(
+      imageFile,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    return uploadTask.ref.getDownloadURL();
+  }
+
+  static Future<void> _sendChatMessage({
+    required String chatRoomId,
+    required String receiverId,
+    required String messageType,
+    required String text,
+    required String imageUrl,
+    required String roomPreview,
+  }) async {
+    final String? currentUserId = getCurrentUserId();
+    if (currentUserId == null) {
+      throw Exception('User is not authenticated.');
+    }
+
     final DatabaseReference msgsRef = _db.ref().child('messages/$chatRoomId');
     final DatabaseReference newMessageRef = msgsRef.push();
 
     await newMessageRef.set({
       'senderId': currentUserId,
       'receiverId': receiverId,
-      'text': trimmedText,
+      'messageType': messageType,
+      'text': text,
+      'imageUrl': imageUrl,
       'timestamp': ServerValue.timestamp,
       'isRead': false,
     });
 
-    // 2. Update parent room in Firestore with the latest message details
     final DocumentReference roomRef = _firestore
         .collection('chat_rooms')
         .doc(chatRoomId);
 
     await roomRef.update({
-      'lastMessage': trimmedText,
+      'lastMessage': roomPreview,
       'lastMessageSenderId': currentUserId,
       'lastMessageTime': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

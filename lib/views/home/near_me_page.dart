@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/user_service.dart';
-import 'home_page.dart'; // Imports your AnimatedLikeButton
+import 'package:rentals/widgets/animated_like_button.dart';
 
 class NearMePage extends StatefulWidget {
   const NearMePage({super.key});
