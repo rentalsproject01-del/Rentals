@@ -247,6 +247,38 @@ class ChatService {
     return null;
   }
 
+  static Future<Map<String, dynamic>?> resolveChatRoomNavigationData({
+    required String chatRoomId,
+    required String currentUserId,
+  }) async {
+    final roomData = await getChatRoom(chatRoomId);
+    if (roomData == null) {
+      return null;
+    }
+
+    final ownerId = roomData['ownerId']?.toString() ?? '';
+    final renterId = roomData['renterId']?.toString() ?? '';
+    final isOwner = currentUserId == ownerId;
+
+    final otherUserId = isOwner ? renterId : ownerId;
+    final otherUserName = isOwner
+        ? roomData['renterName']?.toString() ?? 'Unknown User'
+        : roomData['ownerName']?.toString() ?? 'Unknown User';
+    final otherUserImage = isOwner
+        ? roomData['renterImage']?.toString() ?? ''
+        : roomData['ownerImage']?.toString() ?? '';
+
+    return {
+      'chatRoomId': chatRoomId,
+      'currentUserId': currentUserId,
+      'otherUserId': otherUserId,
+      'otherUserName': otherUserName,
+      'otherUserImage': otherUserImage,
+      'itemTitle': roomData['itemTitle']?.toString() ?? 'Item Inquiry',
+      'itemImage': roomData['itemImage']?.toString() ?? '',
+    };
+  }
+
   static Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
   getChatRoomsForItem(String rentalId) async {
     final snapshot = await _firestore

@@ -10,6 +10,7 @@ import 'package:rentals/views/auth/login_page.dart';
 import 'package:rentals/views/profile/account_setup_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/chat/chat_room_page.dart'; // Added chat room import
+import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/services/user_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -56,6 +57,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   String? _tokenRefreshUserId;
   bool _notificationTapListenersInitialized = false;
+  bool _isNavigationReady = false;
   RemoteMessage? _pendingNavigationMessage;
 
   @override
@@ -129,6 +131,7 @@ class _AuthGateState extends State<AuthGate> {
   void _tryHandlePendingNotificationNavigation() {
     if (_pendingNavigationMessage == null) return;
     if (FirebaseAuth.instance.currentUser == null) return;
+    if (!_isNavigationReady) return;
     if (appNavigatorKey.currentState == null) return;
 
     final RemoteMessage message = _pendingNavigationMessage!;
@@ -139,7 +142,7 @@ class _AuthGateState extends State<AuthGate> {
     });
   }
 
-  void _routeFromNotification(RemoteMessage message) {
+  Future<void> _routeFromNotification(RemoteMessage message) async {
     final data = message.data;
     final type = data['type']?.toString() ?? '';
     final transactionId = data['transactionId']?.toString();
@@ -176,27 +179,51 @@ class _AuthGateState extends State<AuthGate> {
 
       final currentUserId = currentUser.uid;
       final chatRoomId = data['chatRoomId']?.toString() ?? '';
-      final otherUserId = data['otherUserId']?.toString() ?? '';
-      final otherUserName = data['otherUserName']?.toString() ?? 'Unknown User';
-      final otherUserImage = data['otherUserImage']?.toString() ?? '';
-      final itemTitle = data['itemTitle']?.toString() ?? 'Item Inquiry';
-      final itemImage = data['itemImage']?.toString() ?? '';
+      if (chatRoomId.isEmpty) return;
 
-      if (chatRoomId.isNotEmpty && otherUserId.isNotEmpty) {
-        appNavigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (_) => ChatRoomPage(
-              chatRoomId: chatRoomId,
-              currentUserId: currentUserId,
-              otherUserId: otherUserId,
-              otherUserName: otherUserName,
-              otherUserImage: otherUserImage,
-              itemTitle: itemTitle,
-              itemImage: itemImage,
-            ),
+      final resolvedData = await ChatService.resolveChatRoomNavigationData(
+        chatRoomId: chatRoomId,
+        currentUserId: currentUserId,
+      );
+
+      final otherUserId =
+          resolvedData?['otherUserId']?.toString() ??
+          data['otherUserId']?.toString() ??
+          '';
+      if (otherUserId.isEmpty) return;
+
+      final otherUserName =
+          resolvedData?['otherUserName']?.toString() ??
+          data['otherUserName']?.toString() ??
+          'Unknown User';
+      final otherUserImage =
+          resolvedData?['otherUserImage']?.toString() ??
+          data['otherUserImage']?.toString() ??
+          '';
+      final itemTitle =
+          resolvedData?['itemTitle']?.toString() ??
+          data['itemTitle']?.toString() ??
+          'Item Inquiry';
+      final itemImage =
+          resolvedData?['itemImage']?.toString() ??
+          data['itemImage']?.toString() ??
+          '';
+
+      if (!mounted) return;
+
+      appNavigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => ChatRoomPage(
+            chatRoomId: chatRoomId,
+            currentUserId: currentUserId,
+            otherUserId: otherUserId,
+            otherUserName: otherUserName,
+            otherUserImage: otherUserImage,
+            itemTitle: itemTitle,
+            itemImage: itemImage,
           ),
-        );
-      }
+        ),
+      );
       return;
     }
 
@@ -218,11 +245,11 @@ class _AuthGateState extends State<AuthGate> {
 
         if (user == null) {
           _tokenRefreshUserId = null;
+          _isNavigationReady = false;
           return const LoginPage();
         }
 
         _saveFcmToken(user.uid);
-        _tryHandlePendingNotificationNavigation();
 
         return FutureBuilder<DocumentSnapshot>(
           future: FirebaseFirestore.instance
@@ -252,9 +279,12 @@ class _AuthGateState extends State<AuthGate> {
                 : null;
 
             if (UserService.isProfileComplete(userData)) {
+              _isNavigationReady = true;
+              _tryHandlePendingNotificationNavigation();
               return const Navbar();
             }
 
+            _isNavigationReady = false;
             return const AccountSetupPage();
           },
         );

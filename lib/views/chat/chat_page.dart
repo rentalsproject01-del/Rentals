@@ -21,6 +21,48 @@ class _ChatPageState extends State<ChatPage> {
     currentUserId = ChatService.getCurrentUserId();
   }
 
+  Future<void> _openChatRoom({
+    required String chatRoomId,
+    required String fallbackOtherUserId,
+    required String fallbackOtherUserName,
+    required String fallbackOtherUserImage,
+    required String fallbackItemTitle,
+    required String fallbackItemImage,
+  }) async {
+    final currentUserId = this.currentUserId;
+    if (chatRoomId.isEmpty || currentUserId == null) return;
+
+    final resolvedData = await ChatService.resolveChatRoomNavigationData(
+      chatRoomId: chatRoomId,
+      currentUserId: currentUserId,
+    );
+
+    final otherUserId =
+        resolvedData?['otherUserId']?.toString() ?? fallbackOtherUserId;
+    if (otherUserId.isEmpty || !mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatRoomPage(
+          chatRoomId: chatRoomId,
+          currentUserId: currentUserId,
+          otherUserId: otherUserId,
+          otherUserName:
+              resolvedData?['otherUserName']?.toString() ??
+              fallbackOtherUserName,
+          otherUserImage:
+              resolvedData?['otherUserImage']?.toString() ??
+              fallbackOtherUserImage,
+          itemTitle:
+              resolvedData?['itemTitle']?.toString() ?? fallbackItemTitle,
+          itemImage:
+              resolvedData?['itemImage']?.toString() ?? fallbackItemImage,
+        ),
+      ),
+    );
+  }
+
   /// Formats the Firestore Timestamp into a readable string
   String _formatTime(Timestamp? timestamp) {
     if (timestamp == null) return '';
@@ -175,21 +217,13 @@ class _ChatPageState extends State<ChatPage> {
 
     return InkWell(
       onTap: () {
-        if (chatRoomId.isEmpty || currentUserId == null) return;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatRoomPage(
-              chatRoomId: chatRoomId,
-              currentUserId: currentUserId!,
-              otherUserId: otherUserId,
-              otherUserName: otherUserName,
-              otherUserImage: otherUserImage,
-              itemTitle: itemTitle,
-              itemImage: itemImage,
-            ),
-          ),
+        _openChatRoom(
+          chatRoomId: chatRoomId,
+          fallbackOtherUserId: otherUserId,
+          fallbackOtherUserName: otherUserName,
+          fallbackOtherUserImage: otherUserImage,
+          fallbackItemTitle: itemTitle,
+          fallbackItemImage: itemImage,
         );
       },
       child: Padding(

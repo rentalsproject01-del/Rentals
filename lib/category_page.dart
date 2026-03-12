@@ -345,7 +345,7 @@ class _CategoryPageState extends State<CategoryPage> {
           itemCount: filteredItems.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.72,
+            childAspectRatio: 0.68,
             mainAxisSpacing: 15,
             crossAxisSpacing: 15,
           ),
@@ -382,10 +382,12 @@ class _CategoryPageState extends State<CategoryPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFF113F67).withOpacity(0.3)),
+          border: Border.all(
+            color: const Color(0xFF113F67).withValues(alpha: 0.3),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.blueGrey.withOpacity(0.05),
+              color: Colors.blueGrey.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 3),
             ),
@@ -406,10 +408,10 @@ class _CategoryPageState extends State<CategoryPage> {
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
-                              height: 100,
+                              height: 92,
                               width: double.infinity,
                               placeholder: (context, url) => Container(
-                                height: 100,
+                                height: 92,
                                 color: Colors.grey[200],
                                 child: const Center(
                                   child: CircularProgressIndicator(
@@ -419,7 +421,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
-                                height: 100,
+                                height: 92,
                                 color: Colors.grey[200],
                                 child: const Icon(
                                   Icons.broken_image,
@@ -428,7 +430,7 @@ class _CategoryPageState extends State<CategoryPage> {
                               ),
                             )
                           : Container(
-                              height: 100,
+                              height: 92,
                               width: double.infinity,
                               color: Colors.grey[200],
                               child: const Icon(
@@ -443,7 +445,9 @@ class _CategoryPageState extends State<CategoryPage> {
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF113F67).withOpacity(0.85),
+                          color: const Color(
+                            0xFF113F67,
+                          ).withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: AnimatedLikeButton(deal: deal),
@@ -455,50 +459,54 @@ class _CategoryPageState extends State<CategoryPage> {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 5, 10, 7),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          deal['title']?.toString() ?? 'Unknown Item',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            color: Color(0xFF113F67),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            deal['title']?.toString() ?? 'Unknown Item',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              color: Color(0xFF113F67),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 12,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                deal['ownerName']?.toString() ??
-                                    'Unknown Owner',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 12,
+                                color: Colors.grey,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  deal['ownerName']?.toString() ??
+                                      'Unknown Owner',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
