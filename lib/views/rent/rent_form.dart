@@ -16,9 +16,8 @@ class RentForm extends StatelessWidget {
   final ValueChanged<String> onDurationChanged;
 
   final bool isFetchingLocation;
-  final bool isUploading;
   final VoidCallback onLocationTap;
-  final VoidCallback onSubmit;
+  final Future<void> Function() onSubmit;
 
   final Color primaryDarkBlue = const Color(0xFF113F67);
   final Color lightFillColor = const Color(0xFFE5F4F9);
@@ -38,7 +37,6 @@ class RentForm extends StatelessWidget {
     required this.selectedDuration,
     required this.onDurationChanged,
     required this.isFetchingLocation,
-    required this.isUploading,
     required this.onLocationTap,
     required this.onSubmit,
   });
@@ -119,51 +117,7 @@ class RentForm extends StatelessWidget {
 
           const SizedBox(height: 25),
 
-          // --- SUBMIT BUTTON ---
-          GestureDetector(
-            onTap: isUploading ? null : onSubmit,
-            child: Container(
-              width: double.infinity,
-              height: 52,
-              decoration: BoxDecoration(
-                color: primaryDarkBlue,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Center(
-                child: isUploading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/icons/submit_icon.png',
-                            height: 20,
-                            width: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            "Submit",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.white,
-                              decorationThickness: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
+          _AsyncSubmitButton(color: primaryDarkBlue, onSubmit: onSubmit),
           const SizedBox(height: 45),
         ],
       ),
@@ -295,7 +249,7 @@ class RentForm extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: DropdownButtonFormField<String>(
-        value: selectedDuration,
+        initialValue: selectedDuration,
         style: const TextStyle(
           fontSize: 14,
           color: Colors.blueGrey,
@@ -345,7 +299,9 @@ class RentForm extends StatelessWidget {
           return DropdownMenuItem<String>(value: value, child: Text(value));
         }).toList(),
         onChanged: (val) {
-          if (val != null) onDurationChanged(val);
+          if (val != null) {
+            onDurationChanged(val);
+          }
         },
       ),
     );
@@ -379,12 +335,14 @@ class RentForm extends StatelessWidget {
               validator:
                   customValidator ??
                   (value) {
-                    if (value == null || value.trim().isEmpty)
+                    if (value == null || value.trim().isEmpty) {
                       return 'Required';
+                    }
                     if (label == "Location" &&
                         (value.contains("Detecting") ||
-                            value.contains("Failed")))
+                            value.contains("Failed"))) {
                       return 'Valid location needed';
+                    }
                     return null;
                   },
               style: const TextStyle(
@@ -480,6 +438,81 @@ class RentForm extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _AsyncSubmitButton extends StatefulWidget {
+  const _AsyncSubmitButton({required this.color, required this.onSubmit});
+
+  final Color color;
+  final Future<void> Function() onSubmit;
+
+  @override
+  State<_AsyncSubmitButton> createState() => _AsyncSubmitButtonState();
+}
+
+class _AsyncSubmitButtonState extends State<_AsyncSubmitButton> {
+  bool _isSubmitting = false;
+
+  Future<void> _handleSubmit() async {
+    if (_isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.onSubmit();
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _isSubmitting ? null : _handleSubmit,
+      child: Container(
+        width: double.infinity,
+        height: 52,
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Center(
+          child: _isSubmitting
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/icons/submit_icon.png',
+                      height: 20,
+                      width: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "Submit",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white,
+                        decorationThickness: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

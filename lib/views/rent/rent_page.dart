@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:rentals/services/google_maps_location_service.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
 import 'package:rentals/views/rent/rent_form.dart';
 import 'package:rentals/views/rent/rent_image_picker.dart';
@@ -38,7 +38,7 @@ class _RentPageState extends State<RentPage> {
 
   String _selectedDuration = 'Per Day';
   List<File> _selectedImages = [];
-  bool _isUploading = false;
+  bool _isUploadInFlight = false;
 
   // --- LOCATION STATE ---
   double? _latitude;
@@ -71,43 +71,16 @@ class _RentPageState extends State<RentPage> {
   // --- FETCH LOCATION LOGIC ---
   Future<void> _getCurrentLocation() async {
     setState(() => _isFetchingLocation = true);
+
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _isFetchingLocation = false;
-          _locationController.text = "Location Disabled";
-        });
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() {
-            _isFetchingLocation = false;
-            _locationController.text = "Permission Denied";
-          });
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _isFetchingLocation = false;
-          _locationController.text = "Permission Denied";
-        });
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition();
+      final selection =
+          await GoogleMapsLocationService.getCurrentLocationSelection();
 
       if (mounted) {
         setState(() {
-          _latitude = position.latitude;
-          _longitude = position.longitude;
-          _locationController.text = "Current Location";
+          _latitude = selection.latitude;
+          _longitude = selection.longitude;
+          _locationController.text = selection.location;
           _isFetchingLocation = false;
         });
       }
@@ -115,8 +88,12 @@ class _RentPageState extends State<RentPage> {
       if (mounted) {
         setState(() {
           _isFetchingLocation = false;
-          _locationController.text = "Failed to detect";
+          _locationController.text = "Tap to choose location";
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
       }
     }
   }
@@ -128,10 +105,15 @@ class _RentPageState extends State<RentPage> {
       initialPoint = LatLng(_latitude!, _longitude!);
     }
 
-    final LatLng? pickedLocation = await Navigator.push(
+    final LocationSelectionData? pickedLocation = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LocationPickerPage(initialLocation: initialPoint),
+        builder: (context) => LocationPickerPage(
+          initialLocation: initialPoint,
+          initialLocationLabel: _latitude != null && _longitude != null
+              ? _locationController.text.trim()
+              : null,
+        ),
       ),
     );
 
@@ -139,7 +121,7 @@ class _RentPageState extends State<RentPage> {
       setState(() {
         _latitude = pickedLocation.latitude;
         _longitude = pickedLocation.longitude;
-        _locationController.text = "Custom Location";
+        _locationController.text = pickedLocation.location;
       });
     }
   }
@@ -205,6 +187,8 @@ class _RentPageState extends State<RentPage> {
 
   // --- UPLOAD & SAVE LOGIC ---
   Future<void> _uploadAndSaveItem() async {
+    if (_isUploadInFlight) return;
+
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) return;
@@ -225,7 +209,7 @@ class _RentPageState extends State<RentPage> {
       return;
     }
 
-    setState(() => _isUploading = true);
+    _isUploadInFlight = true;
 
     try {
       await RentSubmitService.uploadRental(
@@ -246,8 +230,6 @@ class _RentPageState extends State<RentPage> {
       );
 
       if (!mounted) return;
-
-      setState(() => _isUploading = false);
       await _showTopSuccessBanner('Item uploaded successfully!');
 
       if (!mounted) return;
@@ -264,9 +246,7 @@ class _RentPageState extends State<RentPage> {
         );
       }
     } finally {
-      if (mounted && _isUploading) {
-        setState(() => _isUploading = false);
-      }
+      _isUploadInFlight = false;
     }
   }
 
@@ -337,7 +317,6 @@ class _RentPageState extends State<RentPage> {
                           onDurationChanged: (val) =>
                               setState(() => _selectedDuration = val),
                           isFetchingLocation: _isFetchingLocation,
-                          isUploading: _isUploading,
                           onLocationTap: _openMapPicker,
                           onSubmit: _uploadAndSaveItem,
                           categorySelector: RentCategorySelector(
@@ -357,7 +336,7 @@ class _RentPageState extends State<RentPage> {
                     child: RentImagePicker(
                       key: _imagePickerKey,
                       onImagesChanged: (files) =>
-                          setState(() => _selectedImages = files),
+                          _selectedImages = List<File>.from(files),
                     ),
                   ),
                 ],

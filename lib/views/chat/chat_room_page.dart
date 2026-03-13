@@ -46,14 +46,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Timer? _typingTimer;
 
   bool _isLocalTyping = false;
-  bool _isSending = false;
-  bool _isUploadingImage = false;
   bool _isInitialLoad = true;
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-
-  bool get _isComposerBusy => _isSending || _isUploadingImage;
 
   @override
   void initState() {
@@ -257,70 +253,26 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     return 'Last seen ${date.day} ${months[date.month - 1]}';
   }
 
-  Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
-    if (text.isEmpty || _isComposerBusy) return;
+  Future<void> _sendMessage(String text) async {
+    final trimmedText = text.trim();
+    if (trimmedText.isEmpty) return;
 
-    setState(() => _isSending = true);
     try {
       await ChatService.sendMessage(
         chatRoomId: widget.chatRoomId,
-        text: text,
+        text: trimmedText,
         receiverId: widget.otherUserId,
       );
-      _messageController.clear();
+      if (_messageController.text.trim() == trimmedText) {
+        _messageController.clear();
+      }
       _isLocalTyping = false;
       ChatService.setTypingStatus(widget.chatRoomId, false);
       _typingTimer?.cancel();
       _scrollToBottom(instant: false);
     } catch (_) {
       _showErrorSnackBar('Failed to send message.');
-    } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
     }
-  }
-
-  Future<void> _showImagePickerSheet() async {
-    if (_isComposerBusy) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFEAF7FB),
-                  child: Icon(Icons.photo_library, color: Color(0xFF113F67)),
-                ),
-                title: const Text('Choose from gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickAndSendImage(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFEAF7FB),
-                  child: Icon(Icons.photo_camera, color: Color(0xFF113F67)),
-                ),
-                title: const Text('Take a photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickAndSendImage(ImageSource.camera);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _pickAndSendImage(ImageSource source) async {
@@ -331,10 +283,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         maxWidth: 1600,
       );
       if (pickedFile == null) return;
-
-      if (mounted) {
-        setState(() => _isUploadingImage = true);
-      }
 
       await ChatService.sendImageMessage(
         chatRoomId: widget.chatRoomId,
@@ -348,10 +296,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     } catch (e) {
       debugPrint('Failed to send image: $e');
       _showErrorSnackBar('Failed to send image.');
-    } finally {
-      if (mounted) {
-        setState(() => _isUploadingImage = false);
-      }
     }
   }
 
@@ -520,7 +464,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       body: Column(
         children: [
           Expanded(child: _buildMessagesArea()),
-          _buildMessageInput(),
+          _ChatComposer(
+            controller: _messageController,
+            onSendMessage: _sendMessage,
+            onSendImage: _pickAndSendImage,
+          ),
         ],
       ),
     );
@@ -604,8 +552,99 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       ),
     );
   }
+}
 
-  Widget _buildMessageInput() {
+class _ChatComposer extends StatefulWidget {
+  const _ChatComposer({
+    required this.controller,
+    required this.onSendMessage,
+    required this.onSendImage,
+  });
+
+  final TextEditingController controller;
+  final Future<void> Function(String text) onSendMessage;
+  final Future<void> Function(ImageSource source) onSendImage;
+
+  @override
+  State<_ChatComposer> createState() => _ChatComposerState();
+}
+
+class _ChatComposerState extends State<_ChatComposer> {
+  bool _isSending = false;
+  bool _isUploadingImage = false;
+
+  bool get _isComposerBusy => _isSending || _isUploadingImage;
+
+  Future<void> _handleSend() async {
+    final text = widget.controller.text.trim();
+    if (text.isEmpty || _isComposerBusy) return;
+
+    setState(() => _isSending = true);
+    try {
+      await widget.onSendMessage(text);
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  Future<void> _handleImagePick(ImageSource source) async {
+    if (_isComposerBusy) return;
+
+    setState(() => _isUploadingImage = true);
+    try {
+      await widget.onSendImage(source);
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  Future<void> _showImagePickerSheet() async {
+    if (_isComposerBusy) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFEAF7FB),
+                  child: Icon(Icons.photo_library, color: Color(0xFF113F67)),
+                ),
+                title: const Text('Choose from gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleImagePick(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFEAF7FB),
+                  child: Icon(Icons.photo_camera, color: Color(0xFF113F67)),
+                ),
+                title: const Text('Take a photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleImagePick(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: const BoxDecoration(
@@ -652,11 +691,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   border: Border.all(color: const Color(0xFFD7E4EE)),
                 ),
                 child: TextField(
-                  controller: _messageController,
+                  controller: widget.controller,
                   maxLines: null,
                   enabled: !_isUploadingImage,
                   textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _sendMessage(),
+                  onSubmitted: (_) => _handleSend(),
                   decoration: const InputDecoration(
                     hintText: 'Type a message...',
                     border: InputBorder.none,
@@ -685,7 +724,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         ),
                       )
                     : const Icon(Icons.send_rounded, color: Colors.white),
-                onPressed: _isComposerBusy ? null : _sendMessage,
+                onPressed: _isComposerBusy ? null : _handleSend,
               ),
             ),
           ],

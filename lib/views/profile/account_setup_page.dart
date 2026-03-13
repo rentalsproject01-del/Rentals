@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:rentals/services/google_maps_location_service.dart';
 import 'package:rentals/widgets/navbar.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
 import 'package:rentals/services/user_service.dart';
@@ -149,10 +150,13 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
       initialPoint = LatLng(_latitude!, _longitude!);
     }
 
-    final LatLng? pickedLocation = await Navigator.push(
+    final LocationSelectionData? pickedLocation = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LocationPickerPage(initialLocation: initialPoint),
+        builder: (context) => LocationPickerPage(
+          initialLocation: initialPoint,
+          initialLocationLabel: locationController.text.trim(),
+        ),
       ),
     );
 
@@ -160,11 +164,7 @@ class _AccountSetupPageState extends State<AccountSetupPage> {
       setState(() {
         _latitude = pickedLocation.latitude;
         _longitude = pickedLocation.longitude;
-        locationController.text = UserService.getLocationLabel(
-          location: locationController.text,
-          latitude: _latitude,
-          longitude: _longitude,
-        );
+        locationController.text = pickedLocation.location;
       });
     }
   }

@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 
-class ProductRequestBar extends StatelessWidget {
-  const ProductRequestBar({
-    super.key,
-    required this.isRequesting,
-    required this.onSendRequest,
-  });
+class ProductRequestBar extends StatefulWidget {
+  const ProductRequestBar({super.key, required this.onSendRequest});
 
-  final bool isRequesting;
-  final VoidCallback onSendRequest;
+  final Future<void> Function() onSendRequest;
+
+  @override
+  State<ProductRequestBar> createState() => _ProductRequestBarState();
+}
+
+class _ProductRequestBarState extends State<ProductRequestBar> {
+  bool _isRequesting = false;
+
+  Future<void> _handleSendRequest() async {
+    if (_isRequesting) return;
+
+    setState(() => _isRequesting = true);
+    try {
+      await widget.onSendRequest();
+    } finally {
+      if (mounted) {
+        setState(() => _isRequesting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +51,7 @@ class ProductRequestBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(15),
               ),
               child: ElevatedButton(
-                onPressed: isRequesting ? null : onSendRequest,
+                onPressed: _isRequesting ? null : _handleSendRequest,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -44,7 +59,7 @@ class ProductRequestBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: isRequesting
+                child: _isRequesting
                     ? const SizedBox(
                         height: 24,
                         width: 24,

@@ -4,7 +4,7 @@ import 'package:rentals/models/transaction_model.dart';
 
 import 'myrent_card_styles.dart';
 
-class HostRequestCard extends StatelessWidget {
+class HostRequestCard extends StatefulWidget {
   const HostRequestCard({
     super.key,
     required this.transaction,
@@ -20,18 +20,57 @@ class HostRequestCard extends StatelessWidget {
   final Future<void> Function() onReject;
   final Future<void> Function(int rentalDays) onAccept;
 
-  bool get _isPending => transaction.status.toLowerCase() == 'pending';
+  @override
+  State<HostRequestCard> createState() => _HostRequestCardState();
+}
+
+class _HostRequestCardState extends State<HostRequestCard> {
+  bool _isRejecting = false;
+  bool _isAccepting = false;
+
+  bool get _isPending => widget.transaction.status.toLowerCase() == 'pending';
   bool get _showsCountdown =>
-      transaction.endAt != null &&
-      (transaction.status.toLowerCase() == 'accepted' ||
-          transaction.status.toLowerCase() == 'approved');
+      widget.transaction.endAt != null &&
+      (widget.transaction.status.toLowerCase() == 'accepted' ||
+          widget.transaction.status.toLowerCase() == 'approved');
+
+  bool get _isBusy => _isRejecting || _isAccepting;
+
+  Future<void> _handleReject() async {
+    if (_isBusy) return;
+
+    setState(() => _isRejecting = true);
+    try {
+      await widget.onReject();
+    } finally {
+      if (mounted) {
+        setState(() => _isRejecting = false);
+      }
+    }
+  }
+
+  Future<void> _handleAccept() async {
+    if (_isBusy) return;
+
+    final selectedDays = await _showAcceptDialog(context);
+    if (selectedDays == null) return;
+
+    setState(() => _isAccepting = true);
+    try {
+      await widget.onAccept(selectedDays);
+    } finally {
+      if (mounted) {
+        setState(() => _isAccepting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 30),
-      padding: isTarget ? const EdgeInsets.all(10) : EdgeInsets.zero,
-      decoration: myRentTargetDecoration(isTarget),
+      padding: widget.isTarget ? const EdgeInsets.all(10) : EdgeInsets.zero,
+      decoration: myRentTargetDecoration(widget.isTarget),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -44,9 +83,9 @@ class HostRequestCard extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: transaction.itemImage.isNotEmpty
+              child: widget.transaction.itemImage.isNotEmpty
                   ? CachedNetworkImage(
-                      imageUrl: transaction.itemImage,
+                      imageUrl: widget.transaction.itemImage,
                       fit: BoxFit.cover,
                       placeholder: (context, url) =>
                           Container(color: Colors.grey[200]),
@@ -73,8 +112,8 @@ class HostRequestCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction.renterName.isNotEmpty
-                      ? transaction.renterName
+                  widget.transaction.renterName.isNotEmpty
+                      ? widget.transaction.renterName
                       : 'Unknown Renter',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -90,7 +129,7 @@ class HostRequestCard extends StatelessWidget {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: onReject,
+                        onTap: _isBusy ? null : _handleReject,
                         child: Container(
                           width: 45,
                           height: 24,
@@ -98,16 +137,27 @@ class HostRequestCard extends StatelessWidget {
                             color: const Color(0x26FF0000),
                             borderRadius: BorderRadius.circular(7),
                           ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.red,
-                            size: 14,
+                          child: Center(
+                            child: _isRejecting
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.red,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.close,
+                                    color: Colors.red,
+                                    size: 14,
+                                  ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       GestureDetector(
-                        onTap: () => _showAcceptDialog(context),
+                        onTap: _isBusy ? null : _handleAccept,
                         child: Container(
                           width: 45,
                           height: 24,
@@ -115,10 +165,21 @@ class HostRequestCard extends StatelessWidget {
                             color: const Color(0x2600FF5D),
                             borderRadius: BorderRadius.circular(7),
                           ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.green,
-                            size: 14,
+                          child: Center(
+                            child: _isAccepting
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.green,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.check,
+                                    color: Colors.green,
+                                    size: 14,
+                                  ),
                           ),
                         ),
                       ),
@@ -126,9 +187,9 @@ class HostRequestCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    transaction.status,
+                    widget.transaction.status,
                     style: TextStyle(
-                      color: myRentStatusColor(transaction.status),
+                      color: myRentStatusColor(widget.transaction.status),
                       fontSize: 12,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w600,
@@ -136,7 +197,7 @@ class HostRequestCard extends StatelessWidget {
                   ),
                 const SizedBox(height: 6),
                 Text(
-                  transaction.date,
+                  widget.transaction.date,
                   style: const TextStyle(
                     color: Color(0xFF6F7172),
                     fontSize: 12,
@@ -158,9 +219,9 @@ class HostRequestCard extends StatelessWidget {
                   border: Border.all(color: Colors.grey.shade300, width: 1),
                 ),
                 child: ClipOval(
-                  child: transaction.renterImage.isNotEmpty
+                  child: widget.transaction.renterImage.isNotEmpty
                       ? CachedNetworkImage(
-                          imageUrl: transaction.renterImage,
+                          imageUrl: widget.transaction.renterImage,
                           fit: BoxFit.cover,
                           placeholder: (context, url) =>
                               Container(color: Colors.grey[200]),
@@ -176,7 +237,7 @@ class HostRequestCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      remainingTimeText,
+                      widget.remainingTimeText,
                       style: const TextStyle(
                         color: Color(0xFF6F7172),
                         fontSize: 10,
@@ -200,8 +261,8 @@ class HostRequestCard extends StatelessWidget {
     );
   }
 
-  Future<void> _showAcceptDialog(BuildContext context) async {
-    final selectedDays = await showDialog<int>(
+  Future<int?> _showAcceptDialog(BuildContext context) {
+    return showDialog<int>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -225,9 +286,5 @@ class HostRequestCard extends StatelessWidget {
         );
       },
     );
-
-    if (selectedDays != null) {
-      await onAccept(selectedDays);
-    }
   }
 }

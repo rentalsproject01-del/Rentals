@@ -24,9 +24,8 @@ class _ProductPageState extends State<ProductPage> {
   String _ownerImage = "";
   String _ownerPhone = "";
   bool _isLoadingOwner = true;
-  bool _isRequesting = false;
-  bool _isOpeningChat = false;
-  int _currentImageIndex = 0;
+  bool _isRequestInFlight = false;
+  bool _isOpeningChatInFlight = false;
 
   String get _resolvedSellerId {
     return widget.productData['ownerId']?.toString() ??
@@ -142,9 +141,8 @@ class _ProductPageState extends State<ProductPage> {
   }
 
   Future<void> _handleOpenChat() async {
-    if (_isOpeningChat) return;
-
-    setState(() => _isOpeningChat = true);
+    if (_isOpeningChatInFlight) return;
+    _isOpeningChatInFlight = true;
 
     try {
       final String? currentUserId = ChatService.getCurrentUserId();
@@ -248,11 +246,13 @@ class _ProductPageState extends State<ProductPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isOpeningChat = false);
+      _isOpeningChatInFlight = false;
     }
   }
 
   Future<void> _handleSendRequest() async {
+    if (_isRequestInFlight) return;
+
     final String ownerId = _resolvedSellerId;
     final String itemId = widget.productData['id']?.toString() ?? '';
 
@@ -270,7 +270,7 @@ class _ProductPageState extends State<ProductPage> {
       return;
     }
 
-    setState(() => _isRequesting = true);
+    _isRequestInFlight = true;
     try {
       await TransactionService.createRentalRequest(
         rentalData: widget.productData,
@@ -293,7 +293,7 @@ class _ProductPageState extends State<ProductPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isRequesting = false);
+      _isRequestInFlight = false;
     }
   }
 
@@ -332,15 +332,7 @@ class _ProductPageState extends State<ProductPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  child: ProductImageGallery(
-                    images: images,
-                    currentImageIndex: _currentImageIndex,
-                    onPageChanged: (index) {
-                      setState(() => _currentImageIndex = index);
-                    },
-                  ),
-                ),
+                SizedBox(child: ProductImageGallery(images: images)),
                 Padding(
                   padding: const EdgeInsets.all(22.0),
                   child: Column(
@@ -483,7 +475,6 @@ class _ProductPageState extends State<ProductPage> {
                         ownerImage: _ownerImage,
                         ownerName: _ownerName,
                         isLoadingOwner: _isLoadingOwner,
-                        isOpeningChat: _isOpeningChat,
                         onOpenOwnerProfile: _openOwnerProfile,
                         onCallSeller: _handleCallSeller,
                         onOpenChat: _handleOpenChat,
@@ -544,10 +535,7 @@ class _ProductPageState extends State<ProductPage> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: ProductRequestBar(
-              isRequesting: _isRequesting,
-              onSendRequest: _handleSendRequest,
-            ),
+            child: ProductRequestBar(onSendRequest: _handleSendRequest),
           ),
         ],
       ),

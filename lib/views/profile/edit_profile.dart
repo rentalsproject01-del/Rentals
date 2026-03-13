@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:rentals/services/google_maps_location_service.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/core/utils/validators.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
@@ -74,10 +75,13 @@ class _EditProfileState extends State<EditProfile> {
       initialPoint = LatLng(_latitude!, _longitude!);
     }
 
-    final LatLng? pickedLocation = await Navigator.push(
+    final LocationSelectionData? pickedLocation = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LocationPickerPage(initialLocation: initialPoint),
+        builder: (context) => LocationPickerPage(
+          initialLocation: initialPoint,
+          initialLocationLabel: _locationController.text.trim(),
+        ),
       ),
     );
 
@@ -85,11 +89,7 @@ class _EditProfileState extends State<EditProfile> {
       setState(() {
         _latitude = pickedLocation.latitude;
         _longitude = pickedLocation.longitude;
-        _locationController.text = UserService.getLocationLabel(
-          location: _locationController.text,
-          latitude: _latitude,
-          longitude: _longitude,
-        );
+        _locationController.text = pickedLocation.location;
       });
     }
   }

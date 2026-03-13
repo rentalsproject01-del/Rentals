@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:rentals/views/home/home_page.dart';
+import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_page.dart';
-import 'package:rentals/views/rent/rent_page.dart';
+import 'package:rentals/views/home/home_page.dart';
+import 'package:rentals/views/home/near_me_page.dart';
+import 'package:rentals/views/map/map_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/profile/acc_page.dart';
-import 'package:rentals/views/map/map_page.dart';
-import 'package:rentals/views/home/near_me_page.dart';
-import 'package:rentals/services/chat_service.dart';
+import 'package:rentals/views/rent/rent_page.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -53,7 +54,6 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    // Initialize user presence in RTDB when entering the main authenticated app shell
     ChatService.initializePresence();
 
     _animationController = AnimationController(
@@ -104,8 +104,8 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   void _snapToClosest() {
-    double segmentAngle = (2 * math.pi) / 6;
-    double newTarget = (wheelRotation / segmentAngle).round() * segmentAngle;
+    const segmentAngle = (2 * math.pi) / 6;
+    final newTarget = (wheelRotation / segmentAngle).round() * segmentAngle;
 
     setState(() {
       targetRotation = newTarget;
@@ -115,7 +115,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   int _getActiveIndex(double rotation) {
-    double segmentAngle = (2 * math.pi) / 6;
+    const segmentAngle = (2 * math.pi) / 6;
     int index = ((-rotation) / segmentAngle).round() % 18;
     return index < 0 ? index + 18 : index;
   }
@@ -214,7 +214,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   Widget _navItem(String assetPath, String label, int index) {
-    bool isActive = selectIndex == index;
+    final isActive = selectIndex == index;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -251,19 +251,19 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildSmallFanMenu() {
-    double wheelSize = 200.0;
+    const wheelSize = 200.0;
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
-        int activeIndex = _getActiveIndex(targetRotation);
-        int currentSet = activeIndex ~/ 6;
+        final activeIndex = _getActiveIndex(targetRotation);
+        final currentSet = activeIndex ~/ 6;
 
         return Stack(
           children: [
             if (isMenuOpen)
               GestureDetector(
                 onTap: toggleMenu,
-                child: Container(color: Colors.black.withOpacity(0.05)),
+                child: Container(color: Colors.black.withValues(alpha: 0.05)),
               ),
             Positioned(
               bottom: 92,
@@ -301,7 +301,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                   Transform.rotate(
                                     angle: value,
                                     child: CustomPaint(
-                                      size: Size(wheelSize, wheelSize),
+                                      size: const Size(wheelSize, wheelSize),
                                       painter: FanWheelPainter(
                                         itemCount: 6,
                                         activeIndex: activeIndex % 6,
@@ -309,9 +309,9 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                     ),
                                   ),
                                   ...List.generate(6, (i) {
-                                    int actualIndex = (currentSet * 6) + i;
-                                    double segmentAngle = (2 * math.pi / 6);
-                                    double angle = segmentAngle * i + value;
+                                    final actualIndex = (currentSet * 6) + i;
+                                    final segmentAngle = 2 * math.pi / 6;
+                                    final angle = segmentAngle * i + value;
 
                                     double norm =
                                         (angle + math.pi / 2) % (2 * math.pi);
@@ -325,7 +325,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                                       return const SizedBox.shrink();
                                     }
 
-                                    bool isActive = actualIndex == activeIndex;
+                                    final isActive = actualIndex == activeIndex;
 
                                     return Transform.rotate(
                                       angle: angle,
@@ -410,12 +410,12 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
 class WaveBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    Paint fillPaint = Paint()
+    final fillPaint = Paint()
       ..color = const Color(0xFF113F67)
       ..style = PaintingStyle.fill;
 
-    Path path = Path();
-    double center = size.width / 2;
+    final path = Path();
+    final center = size.width / 2;
     path.moveTo(0, 0);
     path.lineTo(center - 55, 0);
     path.quadraticBezierTo(center - 45, 0, center - 40, 12);
@@ -439,6 +439,7 @@ class WaveBarPainter extends CustomPainter {
 class FanWheelPainter extends CustomPainter {
   final int itemCount;
   final int activeIndex;
+
   FanWheelPainter({required this.itemCount, required this.activeIndex});
 
   @override
@@ -448,16 +449,16 @@ class FanWheelPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     final sweepAngle = (2 * math.pi) / itemCount;
-    const double spacing = 0.04;
+    const spacing = 0.04;
 
     for (int i = 0; i < itemCount; i++) {
-      final bool isActive = i == activeIndex;
+      final isActive = i == activeIndex;
       final paint = Paint()
         ..color = isActive ? const Color(0xFF113F67) : const Color(0xFF00C2FF);
 
-      double startAngle =
+      final startAngle =
           (sweepAngle * i) - (math.pi / 2) - (sweepAngle / 2) + (spacing / 2);
-      double drawSweep = sweepAngle - spacing;
+      final drawSweep = sweepAngle - spacing;
       canvas.drawArc(rect, startAngle, drawSweep, true, paint);
 
       if (!isActive) {

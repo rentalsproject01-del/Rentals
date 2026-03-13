@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
@@ -34,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   final PageController _offerController = PageController();
   int _currentOfferIndex = 0;
   Timer? _offerTimer;
+  late final Stream<List<Map<String, dynamic>>> _rentalsStream;
 
   String _userName = "User";
   String _profileImageUrl = "";
@@ -48,6 +48,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _rentalsStream = RentalService.getAllRentalsWithOwnerNames();
     _startOfferTimer();
     _fetchUserData();
   }
@@ -146,8 +147,8 @@ class _HomePageState extends State<HomePage> {
 
                     _buildSectionTitle("Top Deals"),
 
-                    StreamBuilder<dynamic>(
-                      stream: RentalService.getAllRentalsWithOwnerNames(),
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _rentalsStream,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -177,52 +178,21 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        List<Map<String, dynamic>> items = [];
-
-                        if (snapshot.data is QuerySnapshot) {
-                          final docs = (snapshot.data as QuerySnapshot).docs;
-                          if (docs.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 40),
-                              child: Center(
-                                child: Text(
-                                  "No items available yet",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        final items = snapshot.data!;
+                        if (items.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Center(
+                              child: Text(
+                                "No items available yet",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            );
-                          }
-                          for (var doc in docs) {
-                            final data = Map<String, dynamic>.from(
-                              doc.data() as Map<String, dynamic>,
-                            );
-                            data['id'] = doc.id;
-                            items.add(data);
-                          }
-                        } else if (snapshot.data is List) {
-                          final list = snapshot.data as List;
-                          if (list.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 40),
-                              child: Center(
-                                child: Text(
-                                  "No items available yet",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          for (var item in list) {
-                            items.add(Map<String, dynamic>.from(item as Map));
-                          }
+                            ),
+                          );
                         }
 
                         return GridView.builder(

@@ -7,7 +7,6 @@ class ProductOwnerSection extends StatelessWidget {
     required this.ownerImage,
     required this.ownerName,
     required this.isLoadingOwner,
-    required this.isOpeningChat,
     required this.onOpenOwnerProfile,
     required this.onCallSeller,
     required this.onOpenChat,
@@ -16,10 +15,9 @@ class ProductOwnerSection extends StatelessWidget {
   final String ownerImage;
   final String ownerName;
   final bool isLoadingOwner;
-  final bool isOpeningChat;
   final VoidCallback onOpenOwnerProfile;
   final VoidCallback onCallSeller;
-  final VoidCallback onOpenChat;
+  final Future<void> Function() onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -101,23 +99,7 @@ class ProductOwnerSection extends StatelessWidget {
           onPressed: onCallSeller,
         ),
         const SizedBox(width: 10),
-        _buildActionButton(
-          icon: isOpeningChat
-              ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF16BCE6),
-                  ),
-                )
-              : const Icon(
-                  Icons.chat_bubble_outline,
-                  color: Color(0xFF16BCE6),
-                  size: 22,
-                ),
-          onPressed: isOpeningChat ? null : onOpenChat,
-        ),
+        _AsyncOwnerActionButton(onPressed: onOpenChat),
       ],
     );
   }
@@ -141,6 +123,60 @@ class ProductOwnerSection extends StatelessWidget {
       height: 55,
       color: Colors.grey[200],
       child: const Icon(Icons.person, color: Colors.grey, size: 30),
+    );
+  }
+}
+
+class _AsyncOwnerActionButton extends StatefulWidget {
+  const _AsyncOwnerActionButton({required this.onPressed});
+
+  final Future<void> Function() onPressed;
+
+  @override
+  State<_AsyncOwnerActionButton> createState() =>
+      _AsyncOwnerActionButtonState();
+}
+
+class _AsyncOwnerActionButtonState extends State<_AsyncOwnerActionButton> {
+  bool _isRunning = false;
+
+  Future<void> _handlePressed() async {
+    if (_isRunning) return;
+
+    setState(() => _isRunning = true);
+    try {
+      await widget.onPressed();
+    } finally {
+      if (mounted) {
+        setState(() => _isRunning = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF16BCE6).withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        onPressed: _isRunning ? null : _handlePressed,
+        icon: _isRunning
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF16BCE6),
+                ),
+              )
+            : const Icon(
+                Icons.chat_bubble_outline,
+                color: Color(0xFF16BCE6),
+                size: 22,
+              ),
+      ),
     );
   }
 }

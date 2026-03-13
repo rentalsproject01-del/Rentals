@@ -23,11 +23,15 @@ class MyrentPage extends StatefulWidget {
 
 class _MyrentPageState extends State<MyrentPage> {
   late bool isHostMode;
+  late final Stream<List<TransactionModel>> _hostTransactionsStream;
+  late final Stream<List<TransactionModel>> _rentTransactionsStream;
 
   @override
   void initState() {
     super.initState();
     isHostMode = widget.initialHostMode;
+    _hostTransactionsStream = TransactionService.getUserHosts();
+    _rentTransactionsStream = TransactionService.getUserRents();
   }
 
   @override
@@ -88,7 +92,7 @@ class _MyrentPageState extends State<MyrentPage> {
 
   Widget _buildHostRequestsList() {
     return StreamBuilder<List<TransactionModel>>(
-      stream: TransactionService.getUserHosts(),
+      stream: _hostTransactionsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -149,7 +153,7 @@ class _MyrentPageState extends State<MyrentPage> {
 
   Widget _buildRentedItemsList() {
     return StreamBuilder<List<TransactionModel>>(
-      stream: TransactionService.getUserRents(),
+      stream: _rentTransactionsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(

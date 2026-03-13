@@ -43,6 +43,10 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>GMSApiKey</key>
+	<string>AIzaSyDrlrJYxR-xunUfU_p-6t5jyH2V-FCrpCg</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to help you pick and view nearby rentals on the map.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>

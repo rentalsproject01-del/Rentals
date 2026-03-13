@@ -56,9 +56,11 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   String? _tokenRefreshUserId;
+  String? _profileFutureUserId;
   bool _notificationTapListenersInitialized = false;
   bool _isNavigationReady = false;
   RemoteMessage? _pendingNavigationMessage;
+  Future<DocumentSnapshot<Map<String, dynamic>>>? _profileFuture;
 
   @override
   void initState() {
@@ -80,6 +82,8 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _saveFcmToken(String uid) async {
+    if (_tokenRefreshUserId == uid) return;
+
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
@@ -89,7 +93,6 @@ class _AuthGateState extends State<AuthGate> {
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      if (_tokenRefreshUserId == uid) return;
       _tokenRefreshUserId = uid;
 
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
@@ -104,6 +107,25 @@ class _AuthGateState extends State<AuthGate> {
       });
     } catch (e) {
       debugPrint('Saving FCM token failed: $e');
+    }
+  }
+
+  void _syncAuthenticatedUser(User? user) {
+    if (user == null) {
+      _profileFutureUserId = null;
+      _profileFuture = null;
+      _tokenRefreshUserId = null;
+      _isNavigationReady = false;
+      return;
+    }
+
+    if (_profileFutureUserId != user.uid || _profileFuture == null) {
+      _profileFutureUserId = user.uid;
+      _profileFuture = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      _saveFcmToken(user.uid);
     }
   }
 
@@ -242,20 +264,21 @@ class _AuthGateState extends State<AuthGate> {
         }
 
         final User? user = authSnapshot.data;
+        _syncAuthenticatedUser(user);
 
         if (user == null) {
-          _tokenRefreshUserId = null;
-          _isNavigationReady = false;
           return const LoginPage();
         }
 
-        _saveFcmToken(user.uid);
+        final profileFuture = _profileFuture;
+        if (profileFuture == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get(),
+        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: profileFuture,
           builder: (context, firestoreSnapshot) {
             if (firestoreSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -272,10 +295,9 @@ class _AuthGateState extends State<AuthGate> {
             }
 
             final Map<String, dynamic>? userData =
-                firestoreSnapshot.hasData && firestoreSnapshot.data!.data() != null
-                ? Map<String, dynamic>.from(
-                    firestoreSnapshot.data!.data() as Map<String, dynamic>,
-                  )
+                firestoreSnapshot.hasData &&
+                    firestoreSnapshot.data!.data() != null
+                ? Map<String, dynamic>.from(firestoreSnapshot.data!.data()!)
                 : null;
 
             if (UserService.isProfileComplete(userData)) {

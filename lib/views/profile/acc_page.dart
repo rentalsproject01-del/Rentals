@@ -24,7 +24,23 @@ class AccPage extends StatefulWidget {
 class _AccPageState extends State<AccPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool isHostView = true;
-  String? _deletingRentalId;
+  late final String? _currentUserId;
+  late final Stream<Map<String, dynamic>?> _profileStream;
+  late final Stream<List<Map<String, dynamic>>> _hostedListingsStream;
+  late final Stream<List<TransactionModel>> _rentedListingsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = UserService.getCurrentUserId();
+    _profileStream = UserService.getUserProfileStream();
+    _hostedListingsStream = _currentUserId == null
+        ? Stream<List<Map<String, dynamic>>>.value(
+            const <Map<String, dynamic>>[],
+          )
+        : RentalService.getRentalsForOwner(_currentUserId);
+    _rentedListingsStream = TransactionService.getUserRents();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +132,7 @@ class _AccPageState extends State<AccPage> {
           ),
           const SizedBox(height: 20),
           StreamBuilder<Map<String, dynamic>?>(
-            stream: UserService.getUserProfileStream(),
+            stream: _profileStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
@@ -284,8 +300,7 @@ class _AccPageState extends State<AccPage> {
   }
 
   Widget _buildHostedListings() {
-    final String? uid = UserService.getCurrentUserId();
-    if (uid == null) {
+    if (_currentUserId == null) {
       return const Center(
         child: Text(
           "No items hosted yet.",
@@ -295,7 +310,7 @@ class _AccPageState extends State<AccPage> {
     }
 
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: RentalService.getRentalsForOwner(uid),
+      stream: _hostedListingsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingWidget();
@@ -332,7 +347,7 @@ class _AccPageState extends State<AccPage> {
 
   Widget _buildRentedListings() {
     return StreamBuilder<List<TransactionModel>>(
-      stream: TransactionService.getUserRents(),
+      stream: _rentedListingsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingWidget();
@@ -384,17 +399,14 @@ class _AccPageState extends State<AccPage> {
         : hostedItem['category']?.toString().trim() ?? 'Hosted listing';
     final String createdLabel = _formatHostedDate(hostedItem['createdAt']);
     final String price = hostedItem['price']?.toString() ?? '0';
-    final bool isDeleting = _deletingRentalId == rentalId;
 
     return GestureDetector(
-      onTap: isDeleting
-          ? null
-          : () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProductPage(productData: hostedItem),
-              ),
-            ),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductPage(productData: hostedItem),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Row(
@@ -463,31 +475,9 @@ class _AccPageState extends State<AccPage> {
                   const SizedBox(height: 6),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: isDeleting || rentalId.isEmpty
-                          ? null
-                          : () => _confirmDeleteHostedItem(hostedItem),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: isDeleting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.redAccent,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.delete_outline,
-                                size: 18,
-                                color: Colors.redAccent,
-                              ),
-                      ),
+                    child: _AsyncDeleteButton(
+                      isEnabled: rentalId.isNotEmpty,
+                      onPressed: () => _confirmDeleteHostedItem(hostedItem),
                     ),
                   ),
                 ],
@@ -710,8 +700,6 @@ class _AccPageState extends State<AccPage> {
       return;
     }
 
-    setState(() => _deletingRentalId = rentalId);
-
     try {
       await RentalService.deleteRentalIfAllowed(rentalId);
       if (!mounted) return;
@@ -731,10 +719,61 @@ class _AccPageState extends State<AccPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
+    }
+  }
+}
+
+class _AsyncDeleteButton extends StatefulWidget {
+  const _AsyncDeleteButton({required this.isEnabled, required this.onPressed});
+
+  final bool isEnabled;
+  final Future<void> Function() onPressed;
+
+  @override
+  State<_AsyncDeleteButton> createState() => _AsyncDeleteButtonState();
+}
+
+class _AsyncDeleteButtonState extends State<_AsyncDeleteButton> {
+  bool _isDeleting = false;
+
+  Future<void> _handlePressed() async {
+    if (_isDeleting || !widget.isEnabled) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await widget.onPressed();
     } finally {
       if (mounted) {
-        setState(() => _deletingRentalId = null);
+        setState(() => _isDeleting = false);
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.isEnabled && !_isDeleting ? _handlePressed : null,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: _isDeleting
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.redAccent,
+                ),
+              )
+            : const Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: Colors.redAccent,
+              ),
+      ),
+    );
   }
 }
