@@ -6,7 +6,7 @@ class HelpSupport extends StatelessWidget {
 
   // --- PHONE LAUNCHER LOGIC ---
   Future<void> _launchPhone(BuildContext context) async {
-    final Uri phoneUri = Uri.parse('tel:+919876543210');
+    final Uri phoneUri = Uri.parse('tel:+918767348954');
 
     try {
       if (!await launchUrl(phoneUri)) {
@@ -106,7 +106,7 @@ class HelpSupport extends StatelessWidget {
                           ),
                           const SizedBox(width: 7),
                           const Text(
-                            '+91 9876543210',
+                            '+91 8767348954',
                             style: TextStyle(
                               color: Color(0xFF113F67),
                               fontSize: 16,

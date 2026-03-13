@@ -17,6 +17,23 @@ class ChatService {
   static const String textMessageType = 'text';
   static const String imageMessageType = 'image';
 
+  static bool isMessageRead(Map<String, dynamic> messageData) {
+    return messageData['isRead'] == true;
+  }
+
+  static bool shouldMarkMessageAsRead({
+    required Map<String, dynamic> messageData,
+    required String currentUserId,
+    required String otherUserId,
+  }) {
+    final senderId = messageData['senderId']?.toString() ?? '';
+    final receiverId = messageData['receiverId']?.toString() ?? '';
+
+    return senderId == otherUserId &&
+        receiverId == currentUserId &&
+        !isMessageRead(messageData);
+  }
+
   /// Returns the current authenticated user's UID.
   static String? getCurrentUserId() {
     return _auth.currentUser?.uid;
@@ -236,7 +253,7 @@ class ChatService {
       messageType: imageMessageType,
       text: '',
       imageUrl: imageUrl,
-      roomPreview: '📷 Image',
+      roomPreview: 'Photo',
     );
   }
 
@@ -299,6 +316,28 @@ class ChatService {
       'lastMessageTime': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  static Future<void> markMessagesAsRead({
+    required String chatRoomId,
+    required Iterable<String> messageKeys,
+  }) async {
+    final keys = messageKeys
+        .map((key) => key.trim())
+        .where((key) => key.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (keys.isEmpty) {
+      return;
+    }
+
+    final updates = <String, Object?>{};
+    for (final key in keys) {
+      updates['messages/$chatRoomId/$key/isRead'] = true;
+    }
+
+    await _db.ref().update(updates);
   }
 
   /// Retrieves the raw data of a specific chat room if it exists.

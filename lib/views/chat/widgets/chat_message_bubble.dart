@@ -10,6 +10,7 @@ class ChatMessageBubble extends StatelessWidget {
     required this.messageType,
     required this.timeString,
     required this.isMe,
+    required this.isRead,
     required this.otherUserImage,
     required this.onImageTap,
   });
@@ -19,6 +20,7 @@ class ChatMessageBubble extends StatelessWidget {
   final String messageType;
   final String timeString;
   final bool isMe;
+  final bool isRead;
   final String otherUserImage;
   final VoidCallback onImageTap;
 
@@ -26,9 +28,12 @@ class ChatMessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isImageMessage =
         messageType == ChatService.imageMessageType && imageUrl.isNotEmpty;
+    final bubbleColor = isMe ? const Color(0xFF1A4D74) : Colors.white;
+    final textColor = isMe ? Colors.white : const Color(0xFF132535);
+    final metaColor = isMe ? Colors.white70 : const Color(0xFF6C7A86);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: isMe
             ? MainAxisAlignment.end
@@ -53,36 +58,39 @@ class ChatMessageBubble extends StatelessWidget {
               maxWidth: MediaQuery.of(context).size.width * 0.72,
             ),
             child: Container(
-              padding: EdgeInsets.all(isImageMessage ? 6 : 12),
+              padding: EdgeInsets.fromLTRB(
+                isImageMessage ? 6 : 12,
+                isImageMessage ? 6 : 9,
+                isImageMessage ? 6 : 12,
+                8,
+              ),
               decoration: BoxDecoration(
-                color: isMe ? const Color(0xFF113F67) : Colors.white,
+                color: bubbleColor,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isMe ? 20 : 6),
-                  bottomRight: Radius.circular(isMe ? 6 : 20),
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isMe ? 18 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 18),
                 ),
                 border: isMe
                     ? null
-                    : Border.all(color: const Color(0xFFDCE6EE)),
+                    : Border.all(color: const Color(0xFFD8E3EC)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 8,
+                    color: Color(0x12000000),
+                    blurRadius: 10,
                     offset: Offset(0, 3),
                   ),
                 ],
               ),
               child: Column(
-                crossAxisAlignment: isMe
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (isImageMessage)
                     GestureDetector(
                       onTap: onImageTap,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                         child: CachedNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.cover,
@@ -90,7 +98,7 @@ class ChatMessageBubble extends StatelessWidget {
                             width: 220,
                             height: 180,
                             color: isMe
-                                ? const Color(0xFF245986)
+                                ? const Color(0xFF2A638F)
                                 : const Color(0xFFEAF2F8),
                             alignment: Alignment.center,
                             child: CircularProgressIndicator(
@@ -103,7 +111,7 @@ class ChatMessageBubble extends StatelessWidget {
                             width: 220,
                             height: 180,
                             color: isMe
-                                ? const Color(0xFF245986)
+                                ? const Color(0xFF2A638F)
                                 : const Color(0xFFEAF2F8),
                             alignment: Alignment.center,
                             child: Column(
@@ -134,12 +142,13 @@ class ChatMessageBubble extends StatelessWidget {
                     ),
                   if (isImageMessage && text.trim().isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
                       child: Text(
                         text,
                         style: TextStyle(
-                          color: isMe ? Colors.white : Colors.black87,
+                          color: textColor,
                           fontSize: 15,
+                          height: 1.35,
                         ),
                       ),
                     ),
@@ -147,18 +156,34 @@ class ChatMessageBubble extends StatelessWidget {
                     Text(
                       text,
                       style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
+                        color: textColor,
                         fontSize: 15,
                         height: 1.35,
                       ),
                     ),
-                  const SizedBox(height: 6),
-                  Text(
-                    timeString,
-                    style: TextStyle(
-                      color: isMe ? Colors.white70 : Colors.grey[500],
-                      fontSize: 10,
-                    ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timeString,
+                        style: TextStyle(
+                          color: metaColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          isRead ? Icons.done_all_rounded : Icons.done_rounded,
+                          size: 15,
+                          color: isRead
+                              ? const Color(0xFF91E4FF)
+                              : Colors.white70,
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

@@ -3,9 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 class AnimatedSearchBar extends StatefulWidget {
-  const AnimatedSearchBar({super.key, this.onTap});
+  const AnimatedSearchBar({
+    super.key,
+    this.onTap,
+    this.actionIcon,
+    this.onActionTap,
+  });
 
   final VoidCallback? onTap;
+  final Widget? actionIcon;
+  final VoidCallback? onActionTap;
 
   @override
   State<AnimatedSearchBar> createState() => _AnimatedSearchBarState();
@@ -119,15 +126,21 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar> {
           ),
         ),
         const SizedBox(width: 20),
-        Image.asset(
-          'assets/icons/cart_icon.png',
-          height: 24,
-          width: 24,
-          errorBuilder: (c, e, s) => const Icon(
-            Icons.shopping_cart_outlined,
-            color: Colors.white,
-            size: 24,
-          ),
+        GestureDetector(
+          onTap: widget.onActionTap,
+          behavior: HitTestBehavior.opaque,
+          child:
+              widget.actionIcon ??
+              Image.asset(
+                'assets/icons/cart_icon.png',
+                height: 24,
+                width: 24,
+                errorBuilder: (c, e, s) => const Icon(
+                  Icons.shopping_cart_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
         ),
       ],
     );

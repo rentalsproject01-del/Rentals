@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
+import 'package:rentals/models/home_banner.dart';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/views/profile/like_page.dart';
 import 'package:rentals/views/search/search_page.dart';
 import 'package:rentals/category_page.dart';
-import 'package:rentals/services/user_service.dart';
+import 'package:rentals/services/home_banner_service.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
 import 'package:rentals/widgets/animated_search_bar.dart';
@@ -33,13 +35,12 @@ class _HomePageState extends State<HomePage> {
   final PageController _offerController = PageController();
   int _currentOfferIndex = 0;
   Timer? _offerTimer;
+  StreamSubscription<List<HomeBanner>>? _bannerSubscription;
   late final Stream<List<Map<String, dynamic>>> _rentalsStream;
+  List<HomeBanner> _dynamicBanners = const [];
+  bool _bannerLoadFailed = false;
 
-  String _userName = "User";
-  String _profileImageUrl = "";
-  bool _isLoadingUser = true;
-
-  final List<String> _offerImages = const [
+  final List<String> _fallbackOfferImages = const [
     'assets/images/offer1.png',
     'assets/images/offer2.png',
     'assets/images/offer3.png',
@@ -49,49 +50,92 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _rentalsStream = RentalService.getAllRentalsWithOwnerNames();
+    _listenToHomeBanners();
     _startOfferTimer();
-    _fetchUserData();
   }
 
   @override
   void dispose() {
     _offerTimer?.cancel();
+    _bannerSubscription?.cancel();
     _offerController.dispose();
     super.dispose();
   }
 
+  bool get _showDynamicBanners =>
+      !_bannerLoadFailed && _dynamicBanners.isNotEmpty;
+
+  int get _bannerCount => _showDynamicBanners
+      ? _dynamicBanners.length
+      : _fallbackOfferImages.length;
+
+  void _listenToHomeBanners() {
+    _bannerSubscription = HomeBannerService.watchActiveBanners().listen(
+      (banners) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _bannerLoadFailed = false;
+          _dynamicBanners = banners;
+          _syncBannerIndex();
+        });
+      },
+      onError: (error, stackTrace) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _bannerLoadFailed = true;
+          _dynamicBanners = const [];
+          _syncBannerIndex();
+        });
+      },
+    );
+  }
+
   void _startOfferTimer() {
     _offerTimer = Timer.periodic(const Duration(seconds: 3), (Timer timer) {
-      if (_offerImages.isEmpty) return;
+      final bannerCount = _bannerCount;
+      if (bannerCount <= 1) return;
 
-      if (_currentOfferIndex < _offerImages.length - 1) {
-        _currentOfferIndex++;
-      } else {
-        _currentOfferIndex = 0;
-      }
+      final nextIndex = _currentOfferIndex < bannerCount - 1
+          ? _currentOfferIndex + 1
+          : 0;
 
       if (_offerController.hasClients) {
         _offerController.animateToPage(
-          _currentOfferIndex,
+          nextIndex,
           duration: const Duration(milliseconds: 800),
           curve: Curves.easeInOut,
         );
+      } else if (mounted) {
+        setState(() {
+          _currentOfferIndex = nextIndex;
+        });
       }
     });
   }
 
-  Future<void> _fetchUserData() async {
-    try {
-      final userData = await UserService.getCurrentUserProfile();
-      if (mounted) {
-        setState(() {
-          _userName = userData?['name'] ?? "User";
-          _profileImageUrl = userData?['profileImageUrl'] ?? "";
-          _isLoadingUser = false;
+  void _syncBannerIndex() {
+    final bannerCount = _bannerCount;
+    if (bannerCount == 0) {
+      _currentOfferIndex = 0;
+      return;
+    }
+
+    if (_currentOfferIndex >= bannerCount) {
+      _currentOfferIndex = 0;
+
+      if (_offerController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _offerController.hasClients) {
+            _offerController.jumpToPage(0);
+          }
         });
       }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingUser = false);
     }
   }
 
@@ -99,6 +143,13 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const SearchPage()),
+    );
+  }
+
+  void _openFavoritesScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const LikePage()),
     );
   }
 
@@ -114,7 +165,20 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildTopHeader(),
                 const SizedBox(height: 12),
-                AnimatedSearchBar(onTap: _openSearchScreen),
+                AnimatedSearchBar(
+                  onTap: _openSearchScreen,
+                  onActionTap: _openFavoritesScreen,
+                  actionIcon: Image.asset(
+                    'assets/icons/like_icon.png',
+                    height: 24,
+                    width: 24,
+                    errorBuilder: (c, e, s) => const Icon(
+                      Icons.favorite_border,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 _buildCategoryList(),
               ],
@@ -227,77 +291,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTopHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey[200],
-                border: Border.all(color: const Color(0xFF16BCE6), width: 1.5),
-              ),
-              child: ClipOval(
-                child: _profileImageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: _profileImageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: SizedBox(
-                            width: 15,
-                            height: 15,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.person,
-                          color: Colors.grey,
-                          size: 20,
-                        ),
-                      )
-                    : const Icon(Icons.person, color: Colors.grey, size: 20),
-              ),
+    return SizedBox(
+      height: 52,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/rentals_rlogo.png',
+            height: 42,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.storefront_rounded,
+              color: Colors.white,
+              size: 34,
             ),
-            const SizedBox(width: 10),
-            Column(
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _isLoadingUser
-                    ? const SizedBox(
-                        height: 10,
-                        width: 10,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        _userName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                const Text(
-                  "Just Rent",
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+              children: const [
+                Text(
+                  'Rentals',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    height: 1,
+                  ),
                 ),
+                SizedBox(height: 4),
+                _TypingBrandSubtitle(text: 'Just Rent'),
               ],
             ),
-          ],
-        ),
-        Image.asset(
-          "assets/icons/notification_icon.png",
-          height: 24,
-          width: 24,
-          errorBuilder: (c, e, s) =>
-              const Icon(Icons.notifications_none, color: Colors.white),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -406,7 +437,7 @@ class _HomePageState extends State<HomePage> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: const Color(0xFF113F67),
@@ -489,7 +520,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPromoBanner() {
-    if (_offerImages.isEmpty) return const SizedBox.shrink();
+    if (_bannerCount == 0) return const SizedBox.shrink();
 
     return Positioned(
       top: 100,
@@ -502,22 +533,25 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(15),
           child: PageView.builder(
             controller: _offerController,
-            itemCount: _offerImages.length,
+            itemCount: _bannerCount,
+            onPageChanged: (index) {
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _currentOfferIndex = index;
+              });
+            },
             itemBuilder: (context, index) {
-              return Image.asset(
-                _offerImages[index],
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(
-                      Icons.local_offer,
-                      color: Colors.grey,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              );
+              return _showDynamicBanners
+                  ? _buildNetworkOfferImage(
+                      imageUrl: _dynamicBanners[index].imageUrl,
+                      fallbackAsset:
+                          _fallbackOfferImages[index %
+                              _fallbackOfferImages.length],
+                    )
+                  : _buildAssetOfferImage(_fallbackOfferImages[index]);
             },
           ),
         ),
@@ -526,7 +560,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPageIndicator() {
-    if (_offerImages.isEmpty) return const SizedBox.shrink();
+    if (_bannerCount == 0) return const SizedBox.shrink();
 
     return Positioned(
       top: 290,
@@ -534,18 +568,66 @@ class _HomePageState extends State<HomePage> {
       right: 0,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          _offerImages.length,
-          (index) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: index == _currentOfferIndex ? 20 : 6,
-            height: 5,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              color: index == _currentOfferIndex
-                  ? const Color(0xFF113F67)
-                  : const Color(0xFF16BCE6),
-            ),
+        children: List.generate(_bannerCount, _buildAnimatedIndicator),
+      ),
+    );
+  }
+
+  Widget _buildAssetOfferImage(String assetPath) {
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      errorBuilder: (c, e, s) => Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.local_offer, color: Colors.grey, size: 40),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNetworkOfferImage({
+    required String imageUrl,
+    required String fallbackAsset,
+  }) {
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Container(
+        color: Colors.grey[200],
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Color(0xFF16BCE6),
+          ),
+        ),
+      ),
+      errorWidget: (context, url, error) =>
+          _buildAssetOfferImage(fallbackAsset),
+    );
+  }
+
+  Widget _buildAnimatedIndicator(int index) {
+    final isSelected = index == _currentOfferIndex;
+
+    return AnimatedScale(
+      scale: isSelected ? 1 : 0.94,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      child: AnimatedOpacity(
+        opacity: isSelected ? 1 : 0.72,
+        duration: const Duration(milliseconds: 220),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isSelected ? 20 : 6,
+          height: 5,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            color: isSelected
+                ? const Color(0xFF113F67)
+                : const Color(0xFF16BCE6),
           ),
         ),
       ),
@@ -582,10 +664,12 @@ class _HomePageState extends State<HomePage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFF113F67).withOpacity(0.3)),
+          border: Border.all(
+            color: const Color(0xFF113F67).withValues(alpha: 0.3),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 3),
             ),
@@ -643,7 +727,9 @@ class _HomePageState extends State<HomePage> {
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF113F67).withOpacity(0.85),
+                          color: const Color(
+                            0xFF113F67,
+                          ).withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: AnimatedLikeButton(deal: deal),
@@ -758,6 +844,109 @@ class _HomePageState extends State<HomePage> {
           fontWeight: FontWeight.bold,
           color: Color(0xFF113F67),
         ),
+      ),
+    );
+  }
+}
+
+class _TypingBrandSubtitle extends StatefulWidget {
+  const _TypingBrandSubtitle({required this.text});
+
+  final String text;
+
+  @override
+  State<_TypingBrandSubtitle> createState() => _TypingBrandSubtitleState();
+}
+
+class _TypingBrandSubtitleState extends State<_TypingBrandSubtitle> {
+  Timer? _typingTimer;
+  Timer? _caretTimer;
+  late int _visibleLength;
+  bool _showCaret = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleLength = widget.text.isEmpty ? 0 : 1;
+    _startTyping();
+    _startCaretBlink();
+  }
+
+  void _startTyping() {
+    if (widget.text.length <= 1) {
+      return;
+    }
+
+    _typingTimer = Timer.periodic(const Duration(milliseconds: 90), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_visibleLength >= widget.text.length) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        _visibleLength += 1;
+      });
+    });
+  }
+
+  void _startCaretBlink() {
+    _caretTimer = Timer.periodic(const Duration(milliseconds: 520), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        _showCaret = !_showCaret;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _typingTimer?.cancel();
+    _caretTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleText = widget.text.substring(0, _visibleLength);
+
+    return RepaintBoundary(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            visibleText,
+            maxLines: 1,
+            overflow: TextOverflow.visible,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1,
+            ),
+          ),
+          const SizedBox(width: 2),
+          AnimatedOpacity(
+            opacity: _showCaret ? 1 : 0.18,
+            duration: const Duration(milliseconds: 180),
+            child: Container(
+              width: 1.6,
+              height: 11,
+              decoration: BoxDecoration(
+                color: const Color(0xFFBFEFFF),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

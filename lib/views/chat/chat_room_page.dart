@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/widgets/chat_header_status.dart';
 import 'package:rentals/views/chat/widgets/chat_message_bubble.dart';
+import 'package:rentals/views/chat/widgets/floating_typing_indicator.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final String chatRoomId;
@@ -43,6 +44,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   StreamSubscription<DatabaseEvent>? _removedSub;
 
   final List<Map<String, dynamic>> _messages = <Map<String, dynamic>>[];
+  final Set<String> _readReceiptInFlight = <String>{};
   Timer? _typingTimer;
 
   bool _isLocalTyping = false;
@@ -93,6 +95,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           }
         }
         _sortMessages();
+        unawaited(
+          _markMessagesAsReadIfNeeded(
+            List<Map<String, dynamic>>.from(_messages),
+          ),
+        );
       }
 
       if (mounted) {
@@ -119,6 +126,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 _sortMessages();
               }
             });
+            unawaited(_markMessagesAsReadIfNeeded([msg]));
             _scrollToBottom(instant: false);
           } catch (_) {}
         },
@@ -148,6 +156,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 _sortMessages();
               }
             });
+            unawaited(_markMessagesAsReadIfNeeded([msg]));
           } catch (_) {}
         },
         onError: (e, st) {
@@ -187,6 +196,60 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       return (data['timestamp'] as num).toInt();
     }
     return 0;
+  }
+
+  bool _shouldMarkAsRead(Map<String, dynamic> data) {
+    final key = data['key']?.toString() ?? '';
+    if (key.isEmpty || _readReceiptInFlight.contains(key)) {
+      return false;
+    }
+
+    return ChatService.shouldMarkMessageAsRead(
+      messageData: data,
+      currentUserId: widget.currentUserId,
+      otherUserId: widget.otherUserId,
+    );
+  }
+
+  Future<void> _markMessagesAsReadIfNeeded(
+    Iterable<Map<String, dynamic>> messages,
+  ) async {
+    final keysToUpdate = messages
+        .where(_shouldMarkAsRead)
+        .map((message) => message['key']?.toString() ?? '')
+        .where((key) => key.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (keysToUpdate.isEmpty) {
+      return;
+    }
+
+    _readReceiptInFlight.addAll(keysToUpdate);
+
+    try {
+      await ChatService.markMessagesAsRead(
+        chatRoomId: widget.chatRoomId,
+        messageKeys: keysToUpdate,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        for (final message in _messages) {
+          final key = message['key']?.toString() ?? '';
+          if (keysToUpdate.contains(key)) {
+            message['isRead'] = true;
+          }
+        }
+      });
+    } catch (e, st) {
+      debugPrint('Failed to mark messages as read: $e\n$st');
+    } finally {
+      _readReceiptInFlight.removeAll(keysToUpdate);
+    }
   }
 
   void _scrollToBottom({required bool instant}) {
@@ -464,6 +527,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       body: Column(
         children: [
           Expanded(child: _buildMessagesArea()),
+          _buildTypingIndicator(),
           _ChatComposer(
             controller: _messageController,
             onSendMessage: _sendMessage,
@@ -544,12 +608,59 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             messageType: _messageTypeFor(data),
             timeString: _formatTime(_timestampOf(data)),
             isMe: senderId == widget.currentUserId,
+            isRead: ChatService.isMessageRead(data),
             otherUserImage: widget.otherUserImage,
             onImageTap: () =>
                 _showImagePreview(data['imageUrl']?.toString().trim() ?? ''),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return StreamBuilder<DatabaseEvent>(
+      stream: ChatService.getTypingStatusStream(
+        widget.chatRoomId,
+        widget.otherUserId,
+      ),
+      builder: (context, snapshot) {
+        var isTyping = false;
+        if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+          final data = snapshot.data!.snapshot.value;
+          if (data is Map) {
+            isTyping = data['isTyping'] == true;
+          }
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axisAlignment: -1,
+                child: child,
+              ),
+            );
+          },
+          child: isTyping
+              ? Padding(
+                  key: const ValueKey('typing-indicator'),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FloatingTypingIndicator(
+                      otherUserImage: widget.otherUserImage,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('typing-indicator-empty')),
+        );
+      },
     );
   }
 }

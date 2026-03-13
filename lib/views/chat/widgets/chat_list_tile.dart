@@ -3,6 +3,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:rentals/services/chat_service.dart';
 
+import 'typing_dots_indicator.dart';
+
 class ChatListTile extends StatelessWidget {
   const ChatListTile({
     super.key,
@@ -140,16 +142,25 @@ class ChatListTile extends StatelessWidget {
                       }
 
                       if (isTyping) {
-                        return const Text(
-                          'Typing...',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        return const Row(
+                          children: [
+                            Text(
+                              'Typing',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF0FA9CE),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            TypingDotsIndicator(
+                              activeColor: Color(0xFF0FA9CE),
+                              inactiveColor: Color(0x4016BCE6),
+                              dotSize: 5,
+                              spacing: 3,
+                              bounceOffset: 2.5,
+                            ),
+                          ],
                         );
                       }
 
