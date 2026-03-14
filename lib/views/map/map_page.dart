@@ -18,11 +18,15 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   static const LatLng _defaultLocation = LatLng(19.8762, 75.3433);
   static const double _previewCardHeight = 132;
+  static const ClusterManagerId _rentalsClusterManagerId = ClusterManagerId(
+    'rentals_cluster_manager',
+  );
 
   GoogleMapController? _mapController;
   final RentalMapMarkerIconFactory _markerIconFactory =
       RentalMapMarkerIconFactory();
   final ValueNotifier<String?> _selectedRentalIdNotifier = ValueNotifier(null);
+  late final ClusterManager _clusterManager;
   MapType _mapType = MapType.normal;
   BitmapDescriptor? _fallbackMarkerIcon;
   String _lastMarkerSignature = '';
@@ -33,6 +37,10 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    _clusterManager = ClusterManager(
+      clusterManagerId: _rentalsClusterManagerId,
+      onClusterTap: _handleClusterTap,
+    );
     _primeFallbackMarkerIcon();
   }
 
@@ -160,6 +168,31 @@ class _MapPageState extends State<MapPage> {
     await _focusOnEntry(entry);
   }
 
+  Future<void> _handleClusterTap(Cluster cluster) async {
+    _selectedRentalIdNotifier.value = null;
+
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngBounds(cluster.bounds, 88),
+      );
+    } catch (_) {
+      final zoomLevel = await controller.getZoomLevel();
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: cluster.position,
+            zoom: math.max(zoomLevel + 1.6, 14.2),
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _primeFallbackMarkerIcon() async {
     final fallbackMarkerIcon = await _markerIconFactory.fallbackDescriptor();
     if (!mounted) {
@@ -275,8 +308,9 @@ class _MapPageState extends State<MapPage> {
       return Marker(
         markerId: MarkerId(entry.id),
         position: entry.position,
-        anchor: const Offset(0.5, 0.5),
+        anchor: const Offset(0.5, 1.0),
         consumeTapEvents: true,
+        clusterManagerId: _rentalsClusterManagerId,
         icon: markerIcon,
         infoWindow: InfoWindow(
           title: entry.data['title']?.toString() ?? 'Rental Item',
@@ -458,6 +492,7 @@ class _MapPageState extends State<MapPage> {
                 onMapCreated: _onMapCreated,
                 mapType: _mapType,
                 markers: markers,
+                clusterManagers: {_clusterManager},
                 buildingsEnabled: true,
                 compassEnabled: true,
                 mapToolbarEnabled: false,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +9,7 @@ import 'package:rentals/firebase_options.dart';
 
 import 'package:rentals/widgets/navbar.dart';
 import 'package:rentals/views/auth/login_page.dart';
+import 'package:rentals/views/auth/blocked_account_page.dart';
 import 'package:rentals/views/profile/account_setup_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/chat/chat_room_page.dart'; // Added chat room import
@@ -56,11 +59,10 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   String? _tokenRefreshUserId;
-  String? _profileFutureUserId;
+  String? _blockedSessionHandledUserId;
   bool _notificationTapListenersInitialized = false;
   bool _isNavigationReady = false;
   RemoteMessage? _pendingNavigationMessage;
-  Future<DocumentSnapshot<Map<String, dynamic>>>? _profileFuture;
 
   @override
   void initState() {
@@ -112,21 +114,37 @@ class _AuthGateState extends State<AuthGate> {
 
   void _syncAuthenticatedUser(User? user) {
     if (user == null) {
-      _profileFutureUserId = null;
-      _profileFuture = null;
       _tokenRefreshUserId = null;
+      _blockedSessionHandledUserId = null;
       _isNavigationReady = false;
       return;
     }
+  }
 
-    if (_profileFutureUserId != user.uid || _profileFuture == null) {
-      _profileFutureUserId = user.uid;
-      _profileFuture = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      _saveFcmToken(user.uid);
+  void _handleBlockedSession(User user) {
+    if (_blockedSessionHandledUserId == user.uid) {
+      return;
     }
+
+    _blockedSessionHandledUserId = user.uid;
+    _pendingNavigationMessage = null;
+    _isNavigationReady = false;
+    ChatService.cleanupPresence();
+    unawaited(ChatService.setUserOffline());
+  }
+
+  Future<void> _signOutBlockedUser() async {
+    _pendingNavigationMessage = null;
+    _isNavigationReady = false;
+    ChatService.cleanupPresence();
+
+    try {
+      await ChatService.setUserOffline();
+    } catch (e) {
+      debugPrint('Setting blocked user offline failed: $e');
+    }
+
+    await FirebaseAuth.instance.signOut();
   }
 
   Future<void> _initializeNotificationTapHandling() async {
@@ -270,17 +288,14 @@ class _AuthGateState extends State<AuthGate> {
           return const LoginPage();
         }
 
-        final profileFuture = _profileFuture;
-        if (profileFuture == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          future: profileFuture,
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots(),
           builder: (context, firestoreSnapshot) {
-            if (firestoreSnapshot.connectionState == ConnectionState.waiting) {
+            if (firestoreSnapshot.connectionState == ConnectionState.waiting &&
+                !firestoreSnapshot.hasData) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
@@ -296,9 +311,17 @@ class _AuthGateState extends State<AuthGate> {
 
             final Map<String, dynamic>? userData =
                 firestoreSnapshot.hasData &&
-                    firestoreSnapshot.data!.data() != null
+                    firestoreSnapshot.data?.data() != null
                 ? Map<String, dynamic>.from(firestoreSnapshot.data!.data()!)
                 : null;
+
+            if (UserService.isUserBlocked(userData)) {
+              _handleBlockedSession(user);
+              return BlockedAccountPage(onSignOut: _signOutBlockedUser);
+            }
+
+            _blockedSessionHandledUserId = null;
+            _saveFcmToken(user.uid);
 
             if (UserService.isProfileComplete(userData)) {
               _isNavigationReady = true;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:rentals/models/home_banner.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/views/profile/like_page.dart';
@@ -197,17 +198,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     _buildSectionTitle("Your Rent.., Your Way..."),
 
-                    SizedBox(
-                      height: 290,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          _buildNearMeBanner(),
-                          _buildPromoBanner(),
-                          _buildPageIndicator(),
-                        ],
-                      ),
-                    ),
+                    _buildBannerSection(),
 
                     _buildSectionTitle("Top Deals"),
 
@@ -409,7 +400,6 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildNearMeBanner() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 82,
       decoration: BoxDecoration(
         color: const Color(0xFFE3F2FD),
@@ -522,15 +512,21 @@ class _HomePageState extends State<HomePage> {
   Widget _buildPromoBanner() {
     if (_bannerCount == 0) return const SizedBox.shrink();
 
-    return Positioned(
-      top: 100,
-      left: 0,
-      right: 0,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        height: 180,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF113F67).withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: AspectRatio(
+          aspectRatio: 16 / 7,
           child: PageView.builder(
             controller: _offerController,
             itemCount: _bannerCount,
@@ -546,7 +542,7 @@ class _HomePageState extends State<HomePage> {
             itemBuilder: (context, index) {
               return _showDynamicBanners
                   ? _buildNetworkOfferImage(
-                      imageUrl: _dynamicBanners[index].imageUrl,
+                      imageSource: _dynamicBanners[index].preferredImageSource,
                       fallbackAsset:
                           _fallbackOfferImages[index %
                               _fallbackOfferImages.length],
@@ -560,12 +556,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPageIndicator() {
-    if (_bannerCount == 0) return const SizedBox.shrink();
+    if (_bannerCount <= 1) return const SizedBox.shrink();
 
-    return Positioned(
-      top: 290,
-      left: 0,
-      right: 0,
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_bannerCount, _buildAnimatedIndicator),
@@ -573,37 +567,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildBannerSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Column(
+        children: [
+          _buildNearMeBanner(),
+          const SizedBox(height: 16),
+          _buildPromoBanner(),
+          _buildPageIndicator(),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAssetOfferImage(String assetPath) {
-    return Image.asset(
-      assetPath,
-      fit: BoxFit.cover,
-      errorBuilder: (c, e, s) => Container(
-        color: Colors.grey[300],
-        child: const Center(
-          child: Icon(Icons.local_offer, color: Colors.grey, size: 40),
+    return Container(
+      color: const Color(0xFFF3F8FD),
+      alignment: Alignment.center,
+      child: Image.asset(
+        assetPath,
+        fit: BoxFit.contain,
+        errorBuilder: (c, e, s) => Container(
+          color: Colors.grey[300],
+          child: const Center(
+            child: Icon(Icons.local_offer, color: Colors.grey, size: 40),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNetworkOfferImage({
-    required String imageUrl,
+    required String imageSource,
     required String fallbackAsset,
   }) {
-    return CachedNetworkImage(
-      imageUrl: imageUrl,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        color: Colors.grey[200],
-        child: const Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Color(0xFF16BCE6),
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) =>
-          _buildAssetOfferImage(fallbackAsset),
+    return _ResolvedHomeBannerImage(
+      source: imageSource,
+      fallback: _buildAssetOfferImage(fallbackAsset),
     );
   }
 
@@ -847,6 +848,161 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+class _ResolvedHomeBannerImage extends StatelessWidget {
+  const _ResolvedHomeBannerImage({
+    required this.source,
+    required this.fallback,
+  });
+
+  final String source;
+  final Widget fallback;
+
+  static final Map<String, String> _resolvedUrlCache = <String, String>{};
+  static final Map<String, Future<String?>> _pendingResolutions =
+      <String, Future<String?>>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedSource = source.trim();
+    if (trimmedSource.isEmpty) {
+      return fallback;
+    }
+
+    final normalizedNetworkUrl = _normalizeBannerNetworkUrl(trimmedSource);
+    if (normalizedNetworkUrl != null) {
+      return _buildNetworkImage(normalizedNetworkUrl);
+    }
+
+    return FutureBuilder<String?>(
+      future: _resolveImageUrl(trimmedSource),
+      builder: (context, snapshot) {
+        final resolvedUrl = snapshot.data?.trim() ?? '';
+        if (resolvedUrl.isEmpty) {
+          return fallback;
+        }
+
+        return _buildNetworkImage(resolvedUrl);
+      },
+    );
+  }
+
+  Widget _buildNetworkImage(String imageUrl) {
+    return Container(
+      color: const Color(0xFFF3F8FD),
+      alignment: Alignment.center,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        placeholder: (context, url) => Container(
+          color: const Color(0xFFF3F8FD),
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF16BCE6),
+            ),
+          ),
+        ),
+        errorWidget: (context, url, error) => fallback,
+      ),
+    );
+  }
+
+  static Future<String?> _resolveImageUrl(String source) {
+    final cachedResolvedUrl = _resolvedUrlCache[source];
+    if (cachedResolvedUrl != null && cachedResolvedUrl.isNotEmpty) {
+      return Future<String?>.value(cachedResolvedUrl);
+    }
+
+    return _pendingResolutions.putIfAbsent(source, () async {
+      try {
+        final normalizedNetworkUrl = _normalizeBannerNetworkUrl(source);
+        if (normalizedNetworkUrl != null) {
+          _resolvedUrlCache[source] = normalizedNetworkUrl;
+          return normalizedNetworkUrl;
+        }
+
+        final Reference reference;
+        if (source.startsWith('gs://')) {
+          reference = FirebaseStorage.instance.refFromURL(source);
+        } else {
+          final normalizedPath = source.startsWith('/')
+              ? source.substring(1)
+              : source;
+          if (normalizedPath.isEmpty) {
+            return null;
+          }
+          reference = FirebaseStorage.instance.ref().child(normalizedPath);
+        }
+
+        final resolvedUrl = (await reference.getDownloadURL()).trim();
+        if (resolvedUrl.isEmpty) {
+          return null;
+        }
+
+        _resolvedUrlCache[source] = resolvedUrl;
+        return resolvedUrl;
+      } catch (_) {
+        return null;
+      } finally {
+        _pendingResolutions.remove(source);
+      }
+    });
+  }
+}
+
+String? _normalizeBannerNetworkUrl(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  if (_isBannerNetworkUrl(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('//')) {
+    final protocolRelativeUrl = 'https:$trimmed';
+    return _isBannerNetworkUrl(protocolRelativeUrl)
+        ? protocolRelativeUrl
+        : null;
+  }
+
+  if (!_looksLikeBannerHostPath(trimmed)) {
+    return null;
+  }
+
+  final schemelessUrl = 'https://$trimmed';
+  return _isBannerNetworkUrl(schemelessUrl) ? schemelessUrl : null;
+}
+
+bool _isBannerNetworkUrl(String value) {
+  final uri = Uri.tryParse(value);
+  return uri != null &&
+      (uri.scheme.toLowerCase() == 'http' ||
+          uri.scheme.toLowerCase() == 'https');
+}
+
+bool _looksLikeBannerHostPath(String value) {
+  if (value.startsWith('/') || value.startsWith(r'\')) {
+    return false;
+  }
+
+  final hostCandidate = value.split(RegExp(r'[/?#]')).first.trim();
+  if (hostCandidate.isEmpty ||
+      hostCandidate.contains(' ') ||
+      !hostCandidate.contains('.')) {
+    return false;
+  }
+
+  final lastDotIndex = hostCandidate.lastIndexOf('.');
+  if (lastDotIndex <= 0 || lastDotIndex == hostCandidate.length - 1) {
+    return false;
+  }
+
+  final topLevelSegment = hostCandidate.substring(lastDotIndex + 1);
+  return RegExp(r'^[a-zA-Z]{2,24}$').hasMatch(topLevelSegment);
 }
 
 class _TypingBrandSubtitle extends StatefulWidget {

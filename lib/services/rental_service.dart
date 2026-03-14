@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/services/transaction_service.dart';
+import 'package:rentals/services/user_service.dart';
 
 class RentalService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -33,6 +34,8 @@ class RentalService {
     if (currentUser == null) {
       throw Exception('User is not authenticated.');
     }
+
+    await UserService.ensureCurrentUserCanPerformWrite();
 
     final String uid = currentUser.uid;
 
@@ -152,7 +155,8 @@ class RentalService {
   }
 
   /// Retrieves all rentals once and ensures owner names are populated for search.
-  static Future<List<Map<String, dynamic>>> fetchAllRentalsWithOwnerNames() async {
+  static Future<List<Map<String, dynamic>>>
+  fetchAllRentalsWithOwnerNames() async {
     final QuerySnapshot snapshot = await _firestore
         .collection('rentals')
         .orderBy('createdAt', descending: true)
@@ -161,7 +165,9 @@ class RentalService {
     List<Map<String, dynamic>> enrichedRentals = [];
 
     for (var doc in snapshot.docs) {
-      final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+      final data = Map<String, dynamic>.from(
+        doc.data() as Map<String, dynamic>,
+      );
       data['id'] = doc.id;
       data['ownerName'] = await _resolveOwnerName(data);
       enrichedRentals.add(data);
@@ -181,9 +187,9 @@ class RentalService {
     }
 
     return rentals.where((rental) {
-      return _searchableFields(rental).any(
-        (field) => field.contains(normalizedQuery),
-      );
+      return _searchableFields(
+        rental,
+      ).any((field) => field.contains(normalizedQuery));
     }).toList();
   }
 
@@ -201,7 +207,10 @@ class RentalService {
     }
 
     try {
-      final userDoc = await _firestore.collection('users').doc(uploaderId).get();
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(uploaderId)
+          .get();
       if (userDoc.exists && userDoc.data() != null) {
         final userData = userDoc.data() as Map<String, dynamic>;
         return userData['name']?.toString().trim().isNotEmpty == true
@@ -261,6 +270,8 @@ class RentalService {
       throw Exception('User is not authenticated.');
     }
 
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     final rentalRef = _firestore.collection('rentals').doc(rentalId);
     final rentalSnap = await rentalRef.get();
 
@@ -289,19 +300,10 @@ class RentalService {
     final transactionDocs = await TransactionService.getTransactionsForRental(
       rentalId,
     );
-    final favoriteDocs = await _firestore
-        .collectionGroup('favorites')
-        .where('rentalId', isEqualTo: rentalId)
-        .get();
-
     final batch = _firestore.batch();
 
     for (final transactionDoc in transactionDocs) {
       batch.delete(transactionDoc.reference);
-    }
-
-    for (final favoriteDoc in favoriteDocs.docs) {
-      batch.delete(favoriteDoc.reference);
     }
 
     batch.delete(rentalRef);

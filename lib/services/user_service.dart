@@ -1,9 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+class BlockedUserException implements Exception {
+  const BlockedUserException([
+    this.message = 'This account has been blocked. Please contact support.',
+  ]);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class UserService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String blockedAccountStatus = 'blocked';
 
   // Static cache for location to prevent redundant GPS pings across the app.
   static double? currentLat;
@@ -33,6 +45,8 @@ class UserService {
     if (uid == null) {
       throw Exception("User is not authenticated.");
     }
+
+    await ensureCurrentUserCanPerformWrite();
 
     // Update local location cache
     currentLat = latitude;
@@ -70,6 +84,45 @@ class UserService {
       doc.data() as Map<String, dynamic>,
       fallbackEmail: getCurrentUserEmail(),
     );
+  }
+
+  static Future<Map<String, dynamic>?> getCurrentUserDocument() async {
+    final String? uid = getCurrentUserId();
+    if (uid == null) {
+      return null;
+    }
+
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (!doc.exists || doc.data() == null) {
+      return null;
+    }
+
+    return Map<String, dynamic>.from(doc.data()!);
+  }
+
+  static bool isUserBlocked(Map<String, dynamic>? data) {
+    if (data == null) {
+      return false;
+    }
+
+    final isBlocked = data['isBlocked'] == true;
+    final accountStatus = normalizeAccountStatus(data['accountStatus']);
+    return isBlocked || accountStatus == blockedAccountStatus;
+  }
+
+  static String normalizeAccountStatus(Object? value) {
+    if (value is! String) {
+      return '';
+    }
+
+    return value.trim().toLowerCase();
+  }
+
+  static Future<void> ensureCurrentUserCanPerformWrite() async {
+    final profile = await getCurrentUserDocument();
+    if (isUserBlocked(profile)) {
+      throw const BlockedUserException();
+    }
   }
 
   /// Retrieves a stream of the current user's profile for real-time UI updates.
@@ -142,6 +195,8 @@ class UserService {
     if (uid == null) {
       throw Exception("User is not authenticated.");
     }
+
+    await ensureCurrentUserCanPerformWrite();
 
     final Map<String, dynamic> updateData = {};
 
@@ -246,6 +301,10 @@ class UserService {
       latitude: normalized['latitude'] as double?,
       longitude: normalized['longitude'] as double?,
     );
+    normalized['accountStatus'] = normalizeAccountStatus(
+      normalized['accountStatus'],
+    );
+    normalized['isBlocked'] = normalized['isBlocked'] == true;
 
     return normalized;
   }

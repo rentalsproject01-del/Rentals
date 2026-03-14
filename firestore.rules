@@ -1,0 +1,332 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwnUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function currentUserDocExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isBlockedUser() {
+      return currentUserDocExists()
+        && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked == true
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'blocked'
+        );
+    }
+
+    function canWriteAsUser() {
+      return isSignedIn() && !isBlockedUser();
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function rentalExists(rentalId) {
+      return rentalId is string
+        && rentalId.size() > 0
+        && exists(/databases/$(database)/documents/rentals/$(rentalId));
+    }
+
+    function rentalOwnedByUser(rentalId, userId) {
+      return rentalExists(rentalId)
+        && (
+          get(/databases/$(database)/documents/rentals/$(rentalId)).data.ownerId == userId
+          || get(/databases/$(database)/documents/rentals/$(rentalId)).data.hostId == userId
+        );
+    }
+
+    function ownsRental(rentalId) {
+      return isSignedIn() && rentalOwnedByUser(rentalId, request.auth.uid);
+    }
+
+    function hasNoUserAdminOnlyFields() {
+      return !request.resource.data.keys().hasAny([
+        'isAdmin',
+        'accountStatus',
+        'moderationStatus',
+        'isBlocked',
+        'isDisabled'
+      ]);
+    }
+
+    function preservesUserAdminOnlyFields() {
+      return request.resource.data.isAdmin == resource.data.isAdmin
+        && request.resource.data.accountStatus == resource.data.accountStatus
+        && request.resource.data.moderationStatus == resource.data.moderationStatus
+        && request.resource.data.isBlocked == resource.data.isBlocked
+        && request.resource.data.isDisabled == resource.data.isDisabled;
+    }
+
+    function isChatParticipant() {
+      return isSignedIn()
+        && resource.data.participants is list
+        && request.auth.uid in resource.data.participants;
+    }
+
+    function isChatParticipantOnCreate() {
+      return isSignedIn()
+        && request.resource.data.participants is list
+        && request.auth.uid in request.resource.data.participants;
+    }
+
+    function isMessageChatParticipant(chatRoomId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/chat_rooms/$(chatRoomId))
+        && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(chatRoomId)).data.participants;
+    }
+
+    function isValidChatRoomCreate(chatRoomId) {
+      return canWriteAsUser()
+        && isChatParticipantOnCreate()
+        && request.resource.data.chatRoomId == chatRoomId
+        && request.resource.data.itemId is string
+        && request.resource.data.ownerId is string
+        && request.resource.data.renterId is string
+        && request.resource.data.ownerId != request.resource.data.renterId
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.ownerId in request.resource.data.participants
+        && request.resource.data.renterId in request.resource.data.participants
+        && rentalOwnedByUser(
+          request.resource.data.itemId,
+          request.resource.data.ownerId
+        );
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      allow create: if isAdmin()
+        || (
+          isOwnUser(userId)
+          && hasNoUserAdminOnlyFields()
+        );
+
+      allow update: if isAdmin()
+        || (
+          canWriteAsUser()
+          && isOwnUser(userId)
+          && preservesUserAdminOnlyFields()
+        );
+
+      allow delete: if isAdmin();
+
+      match /favorites/{favoriteId} {
+        allow read: if isAdmin()
+          || isOwnUser(userId)
+          || (
+            resource.data.rentalId is string
+            && ownsRental(resource.data.rentalId)
+          );
+
+        allow create, update: if isAdmin()
+          || (
+            canWriteAsUser()
+            && isOwnUser(userId)
+          );
+
+        allow delete: if isAdmin()
+          || (
+            canWriteAsUser()
+            && isOwnUser(userId)
+          )
+          || (
+            resource.data.rentalId is string
+            && ownsRental(resource.data.rentalId)
+          );
+      }
+    }
+
+    match /rentals/{itemId} {
+      allow read: if isSignedIn();
+
+      allow create: if isAdmin()
+        || (
+          canWriteAsUser()
+          && (
+            request.resource.data.ownerId == request.auth.uid
+            || request.resource.data.hostId == request.auth.uid
+          )
+        );
+
+      allow update: if isAdmin()
+        || (
+          canWriteAsUser()
+          && (
+            resource.data.ownerId == request.auth.uid
+            || resource.data.hostId == request.auth.uid
+          )
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.hostId == resource.data.hostId
+        );
+
+      allow delete: if isAdmin()
+        || (
+          canWriteAsUser()
+          && (
+            resource.data.ownerId == request.auth.uid
+            || resource.data.hostId == request.auth.uid
+          )
+        );
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAdmin()
+        || (
+          isSignedIn()
+          && (
+            resource.data.renterId == request.auth.uid
+            || resource.data.hostId == request.auth.uid
+            || (
+              resource.data.rentalId is string
+              && ownsRental(resource.data.rentalId)
+            )
+          )
+        );
+
+      allow create: if isAdmin()
+        || (
+          canWriteAsUser()
+          && request.resource.data.renterId == request.auth.uid
+          && request.resource.data.hostId is string
+          && request.resource.data.hostId != request.auth.uid
+          && request.resource.data.rentalId is string
+          && rentalOwnedByUser(request.resource.data.rentalId, request.resource.data.hostId)
+          && request.resource.data.status == 'Pending'
+        );
+
+      allow update: if isAdmin()
+        || (
+          canWriteAsUser()
+          && resource.data.hostId == request.auth.uid
+          && request.resource.data.renterId == resource.data.renterId
+          && request.resource.data.hostId == resource.data.hostId
+          && request.resource.data.rentalId == resource.data.rentalId
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'status',
+            'rentalDays',
+            'acceptedAt',
+            'startAt',
+            'endAt',
+            'rejectedAt'
+          ])
+          && (
+            (
+              request.resource.data.status == 'Accepted'
+              && request.resource.data.rentalDays is int
+              && request.resource.data.rentalDays > 0
+            )
+            || (
+              request.resource.data.status == 'Rejected'
+            )
+          )
+        );
+
+      allow delete: if isAdmin()
+        || (
+          canWriteAsUser()
+          && (
+            resource.data.hostId == request.auth.uid
+            || (
+              resource.data.rentalId is string
+              && ownsRental(resource.data.rentalId)
+            )
+          )
+        );
+    }
+
+    match /banners/{bannerId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /chat_rooms/{chatRoomId} {
+      allow get, list: if isAdmin()
+        || isChatParticipant()
+        || (
+          resource.data.itemId is string
+          && ownsRental(resource.data.itemId)
+        );
+
+      allow create: if isAdmin() || isValidChatRoomCreate(chatRoomId);
+
+      allow update: if isAdmin()
+        || (
+          canWriteAsUser()
+          && isChatParticipant()
+          && request.resource.data.chatRoomId == resource.data.chatRoomId
+          && request.resource.data.itemId == resource.data.itemId
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.ownerName == resource.data.ownerName
+          && request.resource.data.ownerImage == resource.data.ownerImage
+          && request.resource.data.renterId == resource.data.renterId
+          && request.resource.data.renterName == resource.data.renterName
+          && request.resource.data.renterImage == resource.data.renterImage
+          && request.resource.data.participants == resource.data.participants
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'lastMessage',
+            'lastMessageSenderId',
+            'lastMessageTime',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isAdmin()
+        || (
+          canWriteAsUser()
+          && resource.data.itemId is string
+          && ownsRental(resource.data.itemId)
+        );
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || isMessageChatParticipant(chatRoomId);
+
+        allow create: if isAdmin()
+          || (
+            canWriteAsUser()
+            && isMessageChatParticipant(chatRoomId)
+            && request.resource.data.senderId == request.auth.uid
+          );
+
+        allow update: if isAdmin()
+          || (
+            canWriteAsUser()
+            && isMessageChatParticipant(chatRoomId)
+          );
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /flagged_items/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /moderation_reports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

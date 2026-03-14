@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rentals/services/user_service.dart';
 
 class FavoritesService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -33,6 +34,8 @@ class FavoritesService {
   static Future<void> toggleFavorite(Map<String, dynamic> rentalData) async {
     final uid = getCurrentUserId();
     if (uid == null) throw Exception("User not logged in.");
+
+    await UserService.ensureCurrentUserCanPerformWrite();
 
     final rentalId = getRentalId(rentalData);
     if (rentalId.isEmpty || rentalId == 'unknown_id') {

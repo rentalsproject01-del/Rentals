@@ -7,13 +7,16 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class RentalMapMarkerIconFactory {
-  static const double markerSize = 74;
+  static const double markerSize = 78;
   static const String fallbackCacheKey = '__fallback_marker__';
   static const Color _accentColor = Color(0xFF16BCE6);
-  static const int _canvasSize = 176;
-  static const double _outerRadius = 58;
-  static const double _ringRadius = 51;
-  static const double _contentRadius = 44;
+  static const int _canvasWidth = 180;
+  static const int _canvasHeight = 228;
+  static const double _pinCircleRadius = 54;
+  static const double _ringRadius = 47;
+  static const double _contentRadius = 40;
+  static const double _pointerHeight = 58;
+  static const double _pointerHalfWidth = 20;
 
   final Map<String, BitmapDescriptor> _iconCache = <String, BitmapDescriptor>{};
   final Map<String, Future<BitmapDescriptor>> _inFlight =
@@ -125,13 +128,35 @@ class RentalMapMarkerIconFactory {
   Future<Uint8List> _drawMarkerBytes({ui.Image? image}) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final center = Offset(_canvasSize / 2, _canvasSize / 2);
+    final center = Offset(_canvasWidth / 2, _pinCircleRadius + 12);
+    final pointerTip = Offset(center.dx, _canvasHeight - 16);
 
     final markerPath = Path()
-      ..addOval(Rect.fromCircle(center: center, radius: _outerRadius));
-    canvas.drawShadow(markerPath, const Color(0x55000000), 14, true);
+      ..moveTo(center.dx, pointerTip.dy)
+      ..quadraticBezierTo(
+        center.dx - (_pointerHalfWidth * 0.72),
+        center.dy + (_pointerHeight * 0.52),
+        center.dx - (_pinCircleRadius * 0.76),
+        center.dy + (_pinCircleRadius * 0.62),
+      )
+      ..arcToPoint(
+        Offset(
+          center.dx + (_pinCircleRadius * 0.76),
+          center.dy + (_pinCircleRadius * 0.62),
+        ),
+        radius: const Radius.circular(_pinCircleRadius),
+        clockwise: false,
+      )
+      ..quadraticBezierTo(
+        center.dx + (_pointerHalfWidth * 0.72),
+        center.dy + (_pointerHeight * 0.52),
+        center.dx,
+        pointerTip.dy,
+      )
+      ..close();
+    canvas.drawShadow(markerPath, const Color(0x55000000), 16, true);
 
-    canvas.drawCircle(center, _outerRadius, Paint()..color = _accentColor);
+    canvas.drawPath(markerPath, Paint()..color = _accentColor);
     canvas.drawCircle(center, _ringRadius, Paint()..color = Colors.white);
 
     final contentRect = Rect.fromCircle(center: center, radius: _contentRadius);
@@ -172,8 +197,8 @@ class RentalMapMarkerIconFactory {
     }
 
     final markerImage = await recorder.endRecording().toImage(
-      _canvasSize,
-      _canvasSize,
+      _canvasWidth,
+      _canvasHeight,
     );
     final byteData = await markerImage.toByteData(
       format: ui.ImageByteFormat.png,
@@ -192,7 +217,7 @@ class RentalMapMarkerIconFactory {
       text: TextSpan(
         text: String.fromCharCode(icon.codePoint),
         style: TextStyle(
-          fontSize: 42,
+          fontSize: 38,
           color: const Color(0xFF8A97A6),
           fontFamily: icon.fontFamily,
         ),

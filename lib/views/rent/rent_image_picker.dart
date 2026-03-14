@@ -94,7 +94,7 @@ class RentImagePickerState extends State<RentImagePicker> {
               title: const Text('Choose from Gallery'),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
+                _pickImagesFromGallery();
               },
             ),
           ],
@@ -121,6 +121,56 @@ class RentImagePickerState extends State<RentImagePicker> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+      }
+    }
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final int remainingSlots = 3 - _selectedImages.length;
+    if (remainingSlots <= 0) {
+      return;
+    }
+
+    try {
+      final List<XFile> pickedFiles = await _picker.pickMultiImage(
+        imageQuality: 85,
+      );
+
+      if (pickedFiles.isEmpty) {
+        return;
+      }
+
+      final List<XFile> filesToAdd = pickedFiles.take(remainingSlots).toList();
+
+      setState(() {
+        _selectedImages.addAll(
+          filesToAdd.map((pickedFile) => File(pickedFile.path)),
+        );
+        _currentOfferIndex = _selectedImages.length - 1;
+      });
+
+      widget.onImagesChanged(_selectedImages);
+
+      if (pickedFiles.length > remainingSlots && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only the first 3 images can be selected.'),
+          ),
+        );
+      }
+
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentOfferIndex,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
       }
     }
   }
@@ -176,7 +226,7 @@ class RentImagePickerState extends State<RentImagePicker> {
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),

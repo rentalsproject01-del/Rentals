@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/favorites_service.dart';
+import 'package:rentals/widgets/animated_like_button.dart';
 
 class LikePage extends StatefulWidget {
   const LikePage({super.key});
@@ -89,14 +90,7 @@ class _LikePageState extends State<LikePage> {
                         separatorBuilder: (context, index) =>
                             const Divider(height: 30, color: Colors.grey),
                         itemBuilder: (context, index) {
-                          return ProductCard(
-                            deal: likedItems[index],
-                            onUnlike: () {
-                              FavoritesService.toggleFavorite(
-                                likedItems[index],
-                              );
-                            },
-                          );
+                          return ProductCard(deal: likedItems[index]);
                         },
                       );
                     },
@@ -114,9 +108,8 @@ class _LikePageState extends State<LikePage> {
 // --- PRODUCT CARD WIDGET ---
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> deal;
-  final VoidCallback onUnlike;
 
-  const ProductCard({super.key, required this.deal, required this.onUnlike});
+  const ProductCard({super.key, required this.deal});
 
   @override
   Widget build(BuildContext context) {
@@ -189,26 +182,7 @@ class ProductCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Animated Like Button (Unliking)
-                  GestureDetector(
-                    onTap: onUnlike,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) =>
-                          ScaleTransition(scale: animation, child: child),
-                      child: Image.asset(
-                        'assets/icons/like_icon3.png', // Liked icon
-                        key: const ValueKey('liked'),
-                        height: 20,
-                        width: 20,
-                        errorBuilder: (c, e, s) => const Icon(
-                          Icons.favorite,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
+                  AnimatedLikeButton(deal: deal, size: 20),
                 ],
               ),
               Text(

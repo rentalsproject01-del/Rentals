@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart' hide Query;
 import 'package:firebase_database/firebase_database.dart' as rtdb show Query;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:rentals/services/user_service.dart';
 
 class ChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -91,6 +92,8 @@ class ChatService {
     final String? uid = getCurrentUserId();
     if (uid == null) return;
 
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     final DatabaseReference typingRef = _db.ref().child(
       'typing/$chatRoomId/$uid',
     );
@@ -128,6 +131,8 @@ class ChatService {
     required Map<String, dynamic> ownerData,
     required Map<String, dynamic> renterData,
   }) async {
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     final String itemId = rentalData['id']?.toString() ?? '';
 
     // Safely resolve owner and renter IDs (handling common key variations like 'uid' or 'id')
@@ -227,6 +232,8 @@ class ChatService {
     final String trimmedText = text.trim();
     if (trimmedText.isEmpty) return;
 
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     await _sendChatMessage(
       chatRoomId: chatRoomId,
       receiverId: receiverId,
@@ -242,6 +249,8 @@ class ChatService {
     required File imageFile,
     required String receiverId,
   }) async {
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     final String imageUrl = await _uploadChatImage(
       chatRoomId: chatRoomId,
       imageFile: imageFile,

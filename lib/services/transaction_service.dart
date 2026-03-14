@@ -51,6 +51,8 @@ class TransactionService {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) throw Exception('User not authenticated.');
 
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     final String uid = currentUser.uid;
     final userProfile = await UserService.getCurrentUserProfile();
 
@@ -170,6 +172,8 @@ class TransactionService {
     required String transactionId,
     required int rentalDays,
   }) async {
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     if (rentalDays <= 0) {
       throw Exception('Rental days must be greater than 0.');
     }
@@ -189,6 +193,8 @@ class TransactionService {
   static Future<void> rejectRentalRequest({
     required String transactionId,
   }) async {
+    await UserService.ensureCurrentUserCanPerformWrite();
+
     await _firestore.collection('transactions').doc(transactionId).update({
       'status': 'Rejected',
       'rejectedAt': FieldValue.serverTimestamp(),
@@ -209,7 +215,8 @@ class TransactionService {
     final docs = await getTransactionsForRental(rentalId);
 
     for (final doc in docs) {
-      final status = doc.data()['status']?.toString().trim().toLowerCase() ?? '';
+      final status =
+          doc.data()['status']?.toString().trim().toLowerCase() ?? '';
       if (_blockingStatuses.contains(status)) {
         return true;
       }
