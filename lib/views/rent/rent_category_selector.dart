@@ -122,9 +122,31 @@ class _RentCategorySelectorState extends State<RentCategorySelector> {
 
   @override
   Widget build(BuildContext context) {
-    // Replaced the Row with a Column to match the updated UI layout
     return Column(
-      children: [_buildCategoryDropdown(), _buildSubcategoryDropdown()],
+      children: [
+        _buildCategoryDropdown(),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey<String>(_selectedCategory),
+            child: _buildSubcategoryDropdown(),
+          ),
+        ),
+      ],
     );
   }
 

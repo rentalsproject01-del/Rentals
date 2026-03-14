@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
+import 'package:rentals/widgets/pressable_scale.dart';
 
 class CategoryDealCard extends StatelessWidget {
   const CategoryDealCard({super.key, required this.deal, required this.onTap});
@@ -20,8 +21,9 @@ class CategoryDealCard extends StatelessWidget {
       }
     }
 
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
+      scaleDown: 0.985,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

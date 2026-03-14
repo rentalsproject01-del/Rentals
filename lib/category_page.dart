@@ -209,34 +209,52 @@ class _CategoryPageState extends State<CategoryPage> {
           );
         }
 
-        return GridView.builder(
-          padding: const EdgeInsets.only(
-            top: 25,
-            left: 15,
-            right: 15,
-            bottom: 20,
-          ),
-          itemCount: filteredItems.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.68,
-            mainAxisSpacing: 15,
-            crossAxisSpacing: 15,
-          ),
-          itemBuilder: (context, index) {
-            final deal = filteredItems[index];
-            return CategoryDealCard(
-              deal: deal,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProductPage(productData: deal),
-                  ),
-                );
-              },
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 240),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.03, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
             );
           },
+          child: GridView.builder(
+            key: ValueKey<String>(selectedSubCategory),
+            padding: const EdgeInsets.only(
+              top: 25,
+              left: 15,
+              right: 15,
+              bottom: 20,
+            ),
+            itemCount: filteredItems.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.68,
+              mainAxisSpacing: 15,
+              crossAxisSpacing: 15,
+            ),
+            itemBuilder: (context, index) {
+              final deal = filteredItems[index];
+              return CategoryDealCard(
+                deal: deal,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductPage(productData: deal),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         );
       },
     );

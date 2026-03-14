@@ -12,6 +12,7 @@ import 'package:rentals/services/home_banner_service.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
 import 'package:rentals/widgets/animated_search_bar.dart';
+import 'package:rentals/widgets/pressable_scale.dart';
 
 // Kept for backward compatibility if any unedited file imports it.
 List<Map<String, dynamic>> globalLikedItems = [];
@@ -348,7 +349,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _categoryItem(String label, String assetPath) {
-    return GestureDetector(
+    return PressableScale(
       onTap: () {
         widget.onCategorySelected(label);
         if (label != 'All') {
@@ -360,11 +361,14 @@ class _HomePageState extends State<HomePage> {
           );
         }
       },
+      scaleDown: 0.93,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Column(
           children: [
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
               height: 45,
               width: 45,
               decoration: BoxDecoration(
@@ -388,9 +392,11 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              label,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
               style: const TextStyle(color: Colors.white, fontSize: 12),
+              child: Text(label),
             ),
           ],
         ),
@@ -652,7 +658,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    return GestureDetector(
+    return PressableScale(
       onTap: () {
         Navigator.push(
           context,
@@ -661,6 +667,7 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
+      scaleDown: 0.985,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

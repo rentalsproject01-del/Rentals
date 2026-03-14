@@ -11,6 +11,7 @@ import 'package:rentals/views/map/map_page.dart';
 import 'package:rentals/views/my_rentals/myrent_page.dart';
 import 'package:rentals/views/profile/acc_page.dart';
 import 'package:rentals/views/rent/rent_page.dart';
+import 'package:rentals/widgets/pressable_scale.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -19,13 +20,17 @@ class Navbar extends StatefulWidget {
   State<Navbar> createState() => _NavbarState();
 }
 
-class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
+class _NavbarState extends State<Navbar> with TickerProviderStateMixin {
   int selectIndex = 0;
   bool isMenuOpen = false;
   late AnimationController _animationController;
+  late AnimationController _wheelSnapController;
+  Animation<double>? _wheelSnapAnimation;
 
   double wheelRotation = 0.0;
   double targetRotation = 0.0;
+  double _dragStartAngle = 0.0;
+  double _dragStartRotation = 0.0;
 
   final List<Map<String, dynamic>> menuItems = [
     {'icon': 'assets/icons/fashion_icon.png', 'label': 'Fashion'},
@@ -60,6 +65,20 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _wheelSnapController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 260),
+        )..addListener(() {
+          final animation = _wheelSnapAnimation;
+          if (animation == null || !mounted) {
+            return;
+          }
+
+          setState(() {
+            wheelRotation = animation.value;
+          });
+        });
 
     pages = [
       HomePage(
@@ -88,6 +107,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _animationController.dispose();
+    _wheelSnapController.dispose();
     super.dispose();
   }
 
@@ -99,19 +119,61 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
         HapticFeedback.lightImpact();
       } else {
         _animationController.reverse();
+        _wheelSnapController.stop();
       }
     });
   }
 
-  void _snapToClosest() {
+  void _selectTab(int index) {
+    if (selectIndex == index && !isMenuOpen) {
+      return;
+    }
+
+    setState(() {
+      selectIndex = index;
+      isMenuOpen = false;
+      _animationController.reverse();
+    });
+
+    HapticFeedback.selectionClick();
+  }
+
+  void _snapToClosest({double velocity = 0}) {
     const segmentAngle = (2 * math.pi) / 6;
-    final newTarget = (wheelRotation / segmentAngle).round() * segmentAngle;
+    final projectedRotation = wheelRotation - (velocity * 0.0012);
+    final newTarget = (projectedRotation / segmentAngle).round() * segmentAngle;
 
     setState(() {
       targetRotation = newTarget;
-      wheelRotation = targetRotation;
     });
+    _wheelSnapAnimation =
+        Tween<double>(begin: wheelRotation, end: targetRotation).animate(
+          CurvedAnimation(
+            parent: _wheelSnapController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _wheelSnapController.forward(from: 0);
     HapticFeedback.mediumImpact();
+  }
+
+  double _normalizeAngleDelta(double angle) {
+    var normalized = angle;
+    while (normalized > math.pi) {
+      normalized -= 2 * math.pi;
+    }
+    while (normalized < -math.pi) {
+      normalized += 2 * math.pi;
+    }
+    return normalized;
+  }
+
+  double _pointerAngle(Offset localPosition, double wheelSize) {
+    final center = Offset(wheelSize / 2, wheelSize / 2);
+    return math.atan2(
+      localPosition.dy - center.dy,
+      localPosition.dx - center.dx,
+    );
   }
 
   int _getActiveIndex(double rotation) {
@@ -157,7 +219,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
           ),
           Positioned(
             bottom: 62,
-            child: GestureDetector(
+            child: PressableScale(
               onTap: toggleMenu,
               onLongPress: () {
                 setState(() {
@@ -171,27 +233,55 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
                   MaterialPageRoute(builder: (context) => const RentPage()),
                 );
               },
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-                padding: const EdgeInsets.all(4),
+              scaleDown: 0.93,
+              child: AnimatedScale(
+                scale: isMenuOpen ? 1.04 : 1,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
                 child: Container(
+                  width: 60,
+                  height: 60,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF00C2FF), Color(0xFF007AFF)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                  child: Icon(
-                    isMenuOpen ? Icons.close : Icons.add,
                     color: Colors.white,
-                    size: 28,
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF00C2FF), Color(0xFF007AFF)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                    child: Center(
+                      child: AnimatedRotation(
+                        turns: isMenuOpen ? 0.125 : 0,
+                        duration: const Duration(milliseconds: 240),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) {
+                            return ScaleTransition(
+                              scale: animation,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Icon(
+                            isMenuOpen ? Icons.close : Icons.add,
+                            key: ValueKey<bool>(isMenuOpen),
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -215,37 +305,52 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
 
   Widget _navItem(String assetPath, String label, int index) {
     final isActive = selectIndex == index;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectIndex = index;
-          isMenuOpen = false;
-          _animationController.reverse();
-        });
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            assetPath,
-            width: 24,
-            height: 24,
-            color: isActive ? Colors.blueAccent : Colors.white,
-            errorBuilder: (context, error, stackTrace) => Icon(
-              Icons.image,
-              color: isActive ? Colors.blueAccent : Colors.white,
-              size: 24,
-            ),
+    final activeColor = isActive ? Colors.blueAccent : Colors.white;
+
+    return PressableScale(
+      onTap: () => _selectTab(index),
+      scaleDown: 0.94,
+      child: AnimatedSlide(
+        offset: Offset(0, isActive ? -0.08 : 0),
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        child: AnimatedScale(
+          scale: isActive ? 1.05 : 1,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: isActive ? 1 : 0),
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  final iconSize = 24 + value;
+                  return Image.asset(
+                    assetPath,
+                    width: iconSize,
+                    height: iconSize,
+                    color: activeColor,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.image, color: activeColor, size: iconSize),
+                  );
+                },
+              ),
+              const SizedBox(height: 2),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                style: TextStyle(
+                  color: activeColor,
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                ),
+                child: Text(label),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? Colors.blueAccent : Colors.white,
-              fontSize: 11,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -255,7 +360,7 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
-        final activeIndex = _getActiveIndex(targetRotation);
+        final activeIndex = _getActiveIndex(wheelRotation);
         final currentSet = activeIndex ~/ 6;
 
         return Stack(
@@ -271,103 +376,121 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
               right: 0,
               child: FadeTransition(
                 opacity: _animationController,
-                child: Center(
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(
-                      begin: wheelRotation,
-                      end: targetRotation,
-                    ),
-                    duration: const Duration(milliseconds: 300),
+                child: ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: _animationController,
                     curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return ClipRect(
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          heightFactor: 0.5,
-                          child: SizedBox(
-                            width: wheelSize,
-                            height: wheelSize,
-                            child: GestureDetector(
-                              onPanUpdate: (details) {
-                                setState(() {
-                                  wheelRotation -= details.delta.dx * 0.007;
-                                  targetRotation = wheelRotation;
-                                });
-                              },
-                              onPanEnd: (_) => _snapToClosest(),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Transform.rotate(
-                                    angle: value,
-                                    child: CustomPaint(
-                                      size: const Size(wheelSize, wheelSize),
-                                      painter: FanWheelPainter(
-                                        itemCount: 6,
-                                        activeIndex: activeIndex % 6,
-                                      ),
+                  ).drive(Tween<double>(begin: 0.94, end: 1)),
+                  child: Center(
+                    child: ClipRect(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        heightFactor: 0.5,
+                        child: SizedBox(
+                          width: wheelSize,
+                          height: wheelSize,
+                          child: GestureDetector(
+                            onPanStart: (details) {
+                              _wheelSnapController.stop();
+                              _dragStartAngle = _pointerAngle(
+                                details.localPosition,
+                                wheelSize,
+                              );
+                              _dragStartRotation = wheelRotation;
+                            },
+                            onPanUpdate: (details) {
+                              final currentAngle = _pointerAngle(
+                                details.localPosition,
+                                wheelSize,
+                              );
+                              final delta = _normalizeAngleDelta(
+                                currentAngle - _dragStartAngle,
+                              );
+                              setState(() {
+                                wheelRotation =
+                                    _dragStartRotation + (delta * 0.92);
+                                targetRotation = wheelRotation;
+                              });
+                            },
+                            onPanEnd: (details) {
+                              _snapToClosest(
+                                velocity: details.velocity.pixelsPerSecond.dx,
+                              );
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Transform.rotate(
+                                  angle: wheelRotation,
+                                  child: CustomPaint(
+                                    size: const Size(wheelSize, wheelSize),
+                                    painter: FanWheelPainter(
+                                      itemCount: 6,
+                                      activeIndex: activeIndex % 6,
                                     ),
                                   ),
-                                  ...List.generate(6, (i) {
-                                    final actualIndex = (currentSet * 6) + i;
-                                    final segmentAngle = 2 * math.pi / 6;
-                                    final angle = segmentAngle * i + value;
+                                ),
+                                ...List.generate(6, (i) {
+                                  final actualIndex = (currentSet * 6) + i;
+                                  final segmentAngle = 2 * math.pi / 6;
+                                  final angle =
+                                      segmentAngle * i + wheelRotation;
 
-                                    double norm =
-                                        (angle + math.pi / 2) % (2 * math.pi);
-                                    if (norm < 0) norm += 2 * math.pi;
+                                  double norm =
+                                      (angle + math.pi / 2) % (2 * math.pi);
+                                  if (norm < 0) norm += 2 * math.pi;
 
-                                    if (norm > math.pi * 0.9 &&
-                                        norm < math.pi * 1.1) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    if (norm > math.pi && norm < 2 * math.pi) {
-                                      return const SizedBox.shrink();
-                                    }
+                                  if (norm > math.pi * 0.9 &&
+                                      norm < math.pi * 1.1) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  if (norm > math.pi && norm < 2 * math.pi) {
+                                    return const SizedBox.shrink();
+                                  }
 
-                                    final isActive = actualIndex == activeIndex;
+                                  final isActive = actualIndex == activeIndex;
 
-                                    return Transform.rotate(
-                                      angle: angle,
-                                      child: Transform.translate(
-                                        offset: Offset(0, isActive ? -75 : -70),
-                                        child: Transform.rotate(
-                                          angle: -angle,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              RentPage.categoryController.text =
-                                                  menuItems[actualIndex]['label'];
-                                              setState(() {
-                                                isMenuOpen = false;
-                                                _animationController.reverse();
-                                              });
-                                              HapticFeedback.mediumImpact();
+                                  return Transform.rotate(
+                                    angle: angle,
+                                    child: Transform.translate(
+                                      offset: Offset(0, isActive ? -75 : -70),
+                                      child: Transform.rotate(
+                                        angle: -angle,
+                                        child: PressableScale(
+                                          scaleDown: 0.92,
+                                          onTap: () {
+                                            RentPage.categoryController.text =
+                                                menuItems[actualIndex]['label'];
+                                            setState(() {
+                                              isMenuOpen = false;
+                                              _animationController.reverse();
+                                            });
+                                            HapticFeedback.mediumImpact();
 
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      const RentPage(),
-                                                ),
-                                              );
-                                            },
-                                            child: _fanOption(
-                                              menuItems[actualIndex]['icon'],
-                                              menuItems[actualIndex]['label'],
-                                              isActive,
-                                            ),
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const RentPage(),
+                                              ),
+                                            );
+                                          },
+                                          child: _fanOption(
+                                            menuItems[actualIndex]['icon'],
+                                            menuItems[actualIndex]['label'],
+                                            isActive,
                                           ),
                                         ),
                                       ),
-                                    );
-                                  }),
-                                ],
-                              ),
+                                    ),
+                                  );
+                                }),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -379,30 +502,48 @@ class _NavbarState extends State<Navbar> with SingleTickerProviderStateMixin {
   }
 
   Widget _fanOption(String assetPath, String label, bool isActive) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isActive)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              label,
-              style: const TextStyle(
+    return AnimatedScale(
+      scale: isActive ? 1.06 : 1,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            child: isActive
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(0, isActive ? -2 : 0, 0),
+            child: Image.asset(
+              assetPath,
+              width: isActive ? 24 : 26,
+              height: isActive ? 24 : 26,
+              color: Colors.white,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.image,
                 color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+                size: isActive ? 24 : 26,
               ),
             ),
           ),
-        Image.asset(
-          assetPath,
-          width: isActive ? 24 : 26,
-          height: isActive ? 24 : 26,
-          color: Colors.white,
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(Icons.image, color: Colors.white, size: isActive ? 24 : 26),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
