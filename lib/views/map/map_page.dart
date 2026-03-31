@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/views/map/rental_map_marker_icon_factory.dart';
+import 'package:rentals/widgets/app_network_image.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -31,8 +31,12 @@ class _MapPageState extends State<MapPage> {
   BitmapDescriptor? _fallbackMarkerIcon;
   String _lastMarkerSignature = '';
   String _lastMarkerIconSignature = '';
+  String _cachedMarkersSignature = '';
   List<_RentalMapEntry> _lastEntries = const <_RentalMapEntry>[];
+  List<_RentalMapEntry> _cachedEntries = const <_RentalMapEntry>[];
+  Set<Marker> _cachedMarkers = const <Marker>{};
   bool _markerRefreshQueued = false;
+  QuerySnapshot? _lastEntriesSnapshot;
 
   @override
   void initState() {
@@ -147,6 +151,17 @@ class _MapPageState extends State<MapPage> {
     }
 
     return entries;
+  }
+
+  List<_RentalMapEntry> _entriesForSnapshot(QuerySnapshot snapshot) {
+    if (identical(_lastEntriesSnapshot, snapshot)) {
+      return _cachedEntries;
+    }
+
+    _lastEntriesSnapshot = snapshot;
+    _cachedEntries = _buildEntries(snapshot);
+    _cachedMarkersSignature = '';
+    return _cachedEntries;
   }
 
   _RentalMapEntry? _findEntryById(List<_RentalMapEntry> entries, String? id) {
@@ -299,7 +314,15 @@ class _MapPageState extends State<MapPage> {
       return const <Marker>{};
     }
 
-    return entries.map((entry) {
+    final markerSignature =
+        '${fallbackMarkerIcon.hashCode}'
+        '|${_buildMarkerSignature(entries)}'
+        '|${_buildMarkerIconSignature(entries)}';
+    if (markerSignature == _cachedMarkersSignature) {
+      return _cachedMarkers;
+    }
+
+    _cachedMarkers = entries.map((entry) {
       final imageUrl = _extractImageUrl(entry.data);
       final cacheKey = _markerIconFactory.cacheKeyForImage(imageUrl);
       final markerIcon =
@@ -319,6 +342,8 @@ class _MapPageState extends State<MapPage> {
         onTap: () => _handleMarkerTap(entry),
       );
     }).toSet();
+    _cachedMarkersSignature = markerSignature;
+    return _cachedMarkers;
   }
 
   String _buildMarkerSignature(List<_RentalMapEntry> entries) {
@@ -476,7 +501,7 @@ class _MapPageState extends State<MapPage> {
           }
 
           final entries = snapshot.hasData
-              ? _buildEntries(snapshot.data!)
+              ? _entriesForSnapshot(snapshot.data!)
               : const <_RentalMapEntry>[];
           _scheduleMarkerIconWarmup(entries);
           final markers = _buildMarkers(entries);
@@ -718,39 +743,13 @@ class _RentalPreviewCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(18),
-                  child: imageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          width: 104,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            width: 104,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF16BCE6),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            width: 104,
-                            color: Colors.grey[200],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          width: 104,
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
-                          ),
-                        ),
+                  child: AppNetworkImage(
+                    imageUrl: imageUrl,
+                    width: 104,
+                    height: double.infinity,
+                    memCacheWidth: 640,
+                    memCacheHeight: 800,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

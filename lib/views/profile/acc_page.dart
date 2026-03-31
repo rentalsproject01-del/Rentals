@@ -13,6 +13,8 @@ import '../../services/user_service.dart';
 import '../../services/rental_service.dart';
 import '../../services/transaction_service.dart';
 import '../../models/transaction_model.dart';
+import '../../widgets/app_feedback.dart';
+import '../../widgets/app_modal_sheet.dart';
 
 class AccPage extends StatefulWidget {
   const AccPage({super.key});
@@ -665,35 +667,21 @@ class _AccPageState extends State<AccPage> {
     final title = hostedItem['title']?.toString() ?? 'this item';
 
     if (rentalId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This item cannot be deleted right now.')),
+      AppFeedback.showError(
+        context,
+        title: 'Delete Unavailable',
+        message: 'This item cannot be deleted right now.',
       );
       return;
     }
 
-    final bool? shouldDelete = await showDialog<bool>(
+    final bool? shouldDelete = await showAppConfirmationSheet(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete Item'),
-          content: Text(
-            'Are you sure you want to delete "$title"? This cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-            ),
-          ],
-        );
-      },
+      title: 'Delete Hosted Item',
+      message:
+          'Are you sure you want to delete "$title"? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      isDestructive: true,
     );
 
     if (shouldDelete != true || !mounted) {
@@ -704,20 +692,18 @@ class _AccPageState extends State<AccPage> {
       await RentalService.deleteRentalIfAllowed(rentalId);
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Hosted item deleted successfully.'),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.showSuccess(
+        context,
+        title: 'Item Deleted',
+        message: 'Hosted item deleted successfully.',
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.redAccent,
-        ),
+      AppFeedback.showError(
+        context,
+        title: 'Delete Failed',
+        message: e.toString().replaceAll('Exception: ', ''),
       );
     }
   }

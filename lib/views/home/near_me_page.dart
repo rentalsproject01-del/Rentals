@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/services/user_service.dart';
+import 'package:rentals/widgets/app_network_image.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
 
 class NearMePage extends StatefulWidget {
@@ -22,11 +22,84 @@ class _NearMePageState extends State<NearMePage> {
   double? _userLng;
   bool _isFetchingLocation = true;
   String _locationError = '';
+  QuerySnapshot? _lastNearbySnapshot;
+  List<Map<String, dynamic>> _nearbyCandidates = const [];
+  List<Map<String, dynamic>> _cachedNearbyItems = const [];
+  double? _cachedNearbyRadius;
+  double? _cachedNearbyUserLat;
+  double? _cachedNearbyUserLng;
 
   @override
   void initState() {
     super.initState();
     _getUserLocation();
+  }
+
+  List<Map<String, dynamic>> _getNearbyItems(QuerySnapshot snapshot) {
+    if (!identical(_lastNearbySnapshot, snapshot)) {
+      _lastNearbySnapshot = snapshot;
+      _nearbyCandidates = snapshot.docs
+          .map((doc) {
+            final data = Map<String, dynamic>.from(
+              doc.data() as Map<String, dynamic>,
+            );
+            data['id'] = doc.id;
+            return data;
+          })
+          .toList(growable: false);
+      _cachedNearbyItems = const [];
+      _cachedNearbyRadius = null;
+      _cachedNearbyUserLat = null;
+      _cachedNearbyUserLng = null;
+    }
+
+    if (_cachedNearbyRadius == _selectedRadius &&
+        _cachedNearbyUserLat == _userLat &&
+        _cachedNearbyUserLng == _userLng) {
+      return _cachedNearbyItems;
+    }
+
+    final nearbyItems = <Map<String, dynamic>>[];
+
+    for (final candidate in _nearbyCandidates) {
+      final latitude = (candidate['latitude'] as num?)?.toDouble();
+      final longitude = (candidate['longitude'] as num?)?.toDouble();
+      if (latitude == null ||
+          longitude == null ||
+          latitude == 0 ||
+          longitude == 0) {
+        continue;
+      }
+
+      final distanceInKm =
+          Geolocator.distanceBetween(
+            _userLat!,
+            _userLng!,
+            latitude,
+            longitude,
+          ) /
+          1000;
+
+      if (distanceInKm > _selectedRadius) {
+        continue;
+      }
+
+      final item = Map<String, dynamic>.from(candidate);
+      item['distance_away'] = distanceInKm;
+      nearbyItems.add(item);
+    }
+
+    nearbyItems.sort(
+      (a, b) => (a['distance_away'] as double).compareTo(
+        b['distance_away'] as double,
+      ),
+    );
+
+    _cachedNearbyRadius = _selectedRadius;
+    _cachedNearbyUserLat = _userLat;
+    _cachedNearbyUserLng = _userLng;
+    _cachedNearbyItems = nearbyItems;
+    return _cachedNearbyItems;
   }
 
   Future<void> _getUserLocation() async {
@@ -132,7 +205,7 @@ class _NearMePageState extends State<NearMePage> {
   Widget _buildRadiusSelector() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-      color: const Color(0xFF113F67).withOpacity(0.05),
+      color: const Color(0xFF113F67).withValues(alpha: 0.05),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -246,51 +319,7 @@ class _NearMePageState extends State<NearMePage> {
           return const Center(child: Text("No rentals available right now."));
         }
 
-        // --- FILTERING LOGIC ---
-        List<Map<String, dynamic>> nearbyItems = [];
-
-        for (var doc in snapshot.data!.docs) {
-          // 1. Create a mutable map from document data safely
-          final data = Map<String, dynamic>.from(
-            doc.data() as Map<String, dynamic>,
-          );
-
-          // 2. Inject the Firestore document ID
-          data['id'] = doc.id;
-
-          if (data['latitude'] != null && data['longitude'] != null) {
-            double itemLat = (data['latitude'] is num)
-                ? (data['latitude'] as num).toDouble()
-                : 0.0;
-            double itemLng = (data['longitude'] is num)
-                ? (data['longitude'] as num).toDouble()
-                : 0.0;
-
-            if (itemLat != 0.0 && itemLng != 0.0) {
-              double distanceInMeters = Geolocator.distanceBetween(
-                _userLat!,
-                _userLng!,
-                itemLat,
-                itemLng,
-              );
-
-              double distanceInKm = distanceInMeters / 1000;
-
-              if (distanceInKm <= _selectedRadius) {
-                // Add the exact distance to the map so we can display it
-                data['distance_away'] = distanceInKm;
-                nearbyItems.add(data);
-              }
-            }
-          }
-        }
-
-        // Sort items so the closest ones appear first
-        nearbyItems.sort(
-          (a, b) => (a['distance_away'] as double).compareTo(
-            b['distance_away'] as double,
-          ),
-        );
+        final nearbyItems = _getNearbyItems(snapshot.data!);
 
         if (nearbyItems.isEmpty) {
           return Center(
@@ -304,6 +333,7 @@ class _NearMePageState extends State<NearMePage> {
 
         return GridView.builder(
           padding: const EdgeInsets.all(12),
+          cacheExtent: 900,
           itemCount: nearbyItems.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
@@ -339,7 +369,9 @@ class _NearMePageState extends State<NearMePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFF113F67).withOpacity(0.5)),
+        border: Border.all(
+          color: const Color(0xFF113F67).withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,40 +384,13 @@ class _NearMePageState extends State<NearMePage> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(15),
-                    child: imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            fit: BoxFit.cover,
-                            height: 100,
-                            width: double.infinity,
-                            placeholder: (context, url) => Container(
-                              height: 100,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFF16BCE6),
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              height: 100,
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.broken_image,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          )
-                        : Container(
-                            height: 100,
-                            width: double.infinity,
-                            color: Colors.grey[200],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                            ),
-                          ),
+                    child: AppNetworkImage(
+                      imageUrl: imageUrl,
+                      width: double.infinity,
+                      height: 100,
+                      memCacheWidth: 640,
+                      memCacheHeight: 360,
+                    ),
                   ),
                   Positioned(
                     top: 7,
@@ -396,7 +401,7 @@ class _NearMePageState extends State<NearMePage> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF113F67).withOpacity(0.85),
+                        color: const Color(0xFF113F67).withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: AnimatedLikeButton(

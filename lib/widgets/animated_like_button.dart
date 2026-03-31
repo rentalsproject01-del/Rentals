@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:rentals/services/favorites_service.dart';
+import 'package:rentals/widgets/app_feedback.dart';
 
 class AnimatedLikeButton extends StatefulWidget {
-  const AnimatedLikeButton({super.key, required this.deal, this.size = 18});
+  const AnimatedLikeButton({
+    super.key,
+    required this.deal,
+    this.size = 18,
+    this.likedColor = const Color(0xFF16BCE6),
+    this.unlikedColor = const Color(0xFF9BAFBE),
+  });
 
   final Map<String, dynamic> deal;
   final double size;
+  final Color likedColor;
+  final Color unlikedColor;
 
   @override
   State<AnimatedLikeButton> createState() => _AnimatedLikeButtonState();
@@ -13,9 +22,6 @@ class AnimatedLikeButton extends StatefulWidget {
 
 class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
     with SingleTickerProviderStateMixin {
-  static const Color _likedColor = Color(0xFF16BCE6);
-  static const Color _unlikedColor = Color(0xFF9BAFBE);
-
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 220),
@@ -51,7 +57,11 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
     super.dispose();
   }
 
-  Future<void> _handleTap(BuildContext context, String rentalId) async {
+  Future<void> _handleTap(
+    BuildContext context,
+    String rentalId,
+    bool isLiked,
+  ) async {
     if (rentalId.isEmpty || rentalId == 'unknown_id') {
       return;
     }
@@ -60,10 +70,23 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
 
     try {
       await FavoritesService.toggleFavorite(widget.deal);
+      if (!context.mounted) {
+        return;
+      }
+
+      AppFeedback.showSuccess(
+        context,
+        title: isLiked ? 'Removed from Saved' : 'Saved to Favorites',
+        message: isLiked
+            ? 'This item was removed from your liked list.'
+            : 'This item was added to your liked list.',
+      );
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update favorites.')),
+        AppFeedback.showError(
+          context,
+          title: 'Action Failed',
+          message: 'Failed to update favorites.',
         );
       }
     }
@@ -72,15 +95,16 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
   @override
   Widget build(BuildContext context) {
     final String rentalId = FavoritesService.getRentalId(widget.deal);
+    final favoriteIdsListenable = FavoritesService.favoriteIdsListenable();
 
-    return StreamBuilder<bool>(
-      stream: FavoritesService.isFavoriteStream(rentalId),
-      builder: (context, snapshot) {
-        final bool isLiked = snapshot.data ?? false;
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: favoriteIdsListenable,
+      builder: (context, favoriteIds, child) {
+        final isLiked = favoriteIds.contains(rentalId);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _handleTap(context, rentalId),
+          onTap: () => _handleTap(context, rentalId, isLiked),
           child: ScaleTransition(
             scale: _scaleAnimation,
             child: AnimatedSwitcher(
@@ -97,7 +121,7 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton>
                 isLiked ? Icons.favorite : Icons.favorite_border_rounded,
                 key: ValueKey<bool>(isLiked),
                 size: widget.size,
-                color: isLiked ? _likedColor : _unlikedColor,
+                color: isLiked ? widget.likedColor : widget.unlikedColor,
               ),
             ),
           ),

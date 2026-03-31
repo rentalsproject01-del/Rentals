@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/services/rental_service.dart';
 import 'package:rentals/views/product/product_page.dart';
+import 'package:rentals/widgets/app_feedback.dart';
 
 class OwnerProfilePage extends StatefulWidget {
   final String ownerId;
@@ -26,9 +27,7 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
 
   void _showUnavailableMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    AppFeedback.showInfo(context, title: 'Unavailable', message: message);
   }
 
   Future<void> _launchPhone(String phone) async {
@@ -666,10 +665,8 @@ class _OwnerProfilePageState extends State<OwnerProfilePage> {
                                   label: 'Location',
                                   isEnabled:
                                       latitude != null && longitude != null,
-                                  onTap: () => _launchLocation(
-                                    latitude,
-                                    longitude,
-                                  ),
+                                  onTap: () =>
+                                      _launchLocation(latitude, longitude),
                                 ),
                               ],
                             ),

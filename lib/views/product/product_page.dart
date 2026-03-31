@@ -9,6 +9,7 @@ import 'package:rentals/views/product/widgets/product_image_gallery.dart';
 import 'package:rentals/views/product/widgets/product_owner_section.dart';
 import 'package:rentals/views/product/widgets/product_request_bar.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
+import 'package:rentals/widgets/app_feedback.dart';
 
 class ProductPage extends StatefulWidget {
   final Map<String, dynamic> productData;
@@ -82,8 +83,10 @@ class _ProductPageState extends State<ProductPage> {
     final String ownerId = _resolvedSellerId;
 
     if (ownerId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Owner profile is unavailable.")),
+      AppFeedback.showInfo(
+        context,
+        title: 'Profile Unavailable',
+        message: 'Owner profile is unavailable.',
       );
       return;
     }
@@ -117,25 +120,27 @@ class _ProductPageState extends State<ProductPage> {
           await launchUrl(launchUri);
         } else {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Could not open dialer on this device."),
-              ),
+            AppFeedback.showError(
+              context,
+              title: 'Call Unavailable',
+              message: 'Could not open dialer on this device.',
             );
           }
         }
       } catch (_) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Could not open dialer on this device."),
-            ),
+          AppFeedback.showError(
+            context,
+            title: 'Call Unavailable',
+            message: 'Could not open dialer on this device.',
           );
         }
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Seller phone number is unavailable.")),
+      AppFeedback.showInfo(
+        context,
+        title: 'Phone Unavailable',
+        message: 'Seller phone number is unavailable.',
       );
     }
   }
@@ -148,8 +153,10 @@ class _ProductPageState extends State<ProductPage> {
       final String? currentUserId = ChatService.getCurrentUserId();
       if (currentUserId == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Please log in to start chatting.")),
+          AppFeedback.showInfo(
+            context,
+            title: 'Login Required',
+            message: 'Please log in to start chatting.',
           );
         }
         return;
@@ -161,8 +168,10 @@ class _ProductPageState extends State<ProductPage> {
 
       if (itemId.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Item information is incomplete.")),
+          AppFeedback.showError(
+            context,
+            title: 'Item Unavailable',
+            message: 'Item information is incomplete.',
           );
         }
         return;
@@ -170,8 +179,10 @@ class _ProductPageState extends State<ProductPage> {
 
       if (ownerId.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Seller information is missing.")),
+          AppFeedback.showError(
+            context,
+            title: 'Seller Missing',
+            message: 'Seller information is missing.',
           );
         }
         return;
@@ -179,10 +190,10 @@ class _ProductPageState extends State<ProductPage> {
 
       if (currentUserId == ownerId) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("You cannot chat about your own item."),
-            ),
+          AppFeedback.showInfo(
+            context,
+            title: 'Unavailable Action',
+            message: 'You cannot chat about your own item.',
           );
         }
         return;
@@ -193,8 +204,10 @@ class _ProductPageState extends State<ProductPage> {
 
       if (rawOwnerData == null || rawRenterData == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to load user profiles.")),
+          AppFeedback.showError(
+            context,
+            title: 'Profile Load Failed',
+            message: 'Failed to load user profiles.',
           );
         }
         return;
@@ -241,8 +254,10 @@ class _ProductPageState extends State<ProductPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        AppFeedback.showError(
+          context,
+          title: 'Chat Unavailable',
+          message: e.toString().replaceAll('Exception: ', ''),
         );
       }
     } finally {
@@ -257,15 +272,19 @@ class _ProductPageState extends State<ProductPage> {
     final String itemId = widget.productData['id']?.toString() ?? '';
 
     if (itemId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Item information is incomplete.")),
+      AppFeedback.showError(
+        context,
+        title: 'Item Unavailable',
+        message: 'Item information is incomplete.',
       );
       return;
     }
 
     if (ownerId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Seller information is missing.")),
+      AppFeedback.showError(
+        context,
+        title: 'Seller Missing',
+        message: 'Seller information is missing.',
       );
       return;
     }
@@ -276,20 +295,18 @@ class _ProductPageState extends State<ProductPage> {
         rentalData: widget.productData,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Request sent successfully!"),
-            backgroundColor: Colors.green,
-          ),
+        AppFeedback.showSuccess(
+          context,
+          title: 'Request Sent',
+          message: 'Your rental request was sent successfully.',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.redAccent,
-          ),
+        AppFeedback.showError(
+          context,
+          title: 'Request Failed',
+          message: e.toString().replaceAll('Exception: ', ''),
         );
       }
     } finally {

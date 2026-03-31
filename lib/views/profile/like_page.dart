@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rentals/views/product/product_page.dart';
 import 'package:rentals/services/favorites_service.dart';
+import 'package:rentals/widgets/app_network_image.dart';
 import 'package:rentals/widgets/animated_like_button.dart';
 
 class LikePage extends StatefulWidget {
@@ -126,39 +126,13 @@ class ProductCard extends StatelessWidget {
         // Image Section
         ClipRRect(
           borderRadius: BorderRadius.circular(15),
-          child: imageUrl.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  width: 150,
-                  height: 100,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    width: 150,
-                    height: 100,
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF16BCE6),
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    width: 150,
-                    height: 100,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                  ),
-                )
-              : Container(
-                  width: 150,
-                  height: 100,
-                  color: Colors.grey[200],
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey,
-                  ),
-                ),
+          child: AppNetworkImage(
+            imageUrl: imageUrl,
+            width: 150,
+            height: 100,
+            memCacheWidth: 640,
+            memCacheHeight: 420,
+          ),
         ),
         const SizedBox(width: 12),
 

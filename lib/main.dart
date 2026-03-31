@@ -321,7 +321,10 @@ class _AuthGateState extends State<AuthGate> {
             }
 
             _blockedSessionHandledUserId = null;
-            _saveFcmToken(user.uid);
+
+            if (userData != null) {
+              _saveFcmToken(user.uid);
+            }
 
             if (UserService.isProfileComplete(userData)) {
               _isNavigationReady = true;

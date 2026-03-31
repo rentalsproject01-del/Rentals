@@ -82,6 +82,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     try {
       final query = ChatService.getMessagesQuery(widget.chatRoomId);
       final snapshot = await query.get();
+      final initialMessages = <Map<String, dynamic>>[];
 
       if (snapshot.exists && snapshot.value is Map) {
         final map = snapshot.value as Map<dynamic, dynamic>;
@@ -90,11 +91,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             try {
               final msg = Map<String, dynamic>.from(entry.value as Map);
               msg['key'] = entry.key.toString();
-              _messages.add(msg);
+              initialMessages.add(msg);
             } catch (_) {}
           }
         }
-        _sortMessages();
+        initialMessages.sort(
+          (a, b) => _timestampOf(a).compareTo(_timestampOf(b)),
+        );
+        _messages
+          ..clear()
+          ..addAll(initialMessages);
         unawaited(
           _markMessagesAsReadIfNeeded(
             List<Map<String, dynamic>>.from(_messages),
@@ -120,11 +126,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           try {
             final msg = Map<String, dynamic>.from(value);
             msg['key'] = key;
+            final alreadyExists = _messages.any(
+              (message) => message['key'] == key,
+            );
+            if (alreadyExists) {
+              return;
+            }
             setState(() {
-              if (_messages.every((m) => m['key'] != key)) {
-                _messages.add(msg);
-                _sortMessages();
-              }
+              _insertMessageSorted(msg);
             });
             unawaited(_markMessagesAsReadIfNeeded([msg]));
             _scrollToBottom(instant: false);
@@ -150,11 +159,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             final msg = Map<String, dynamic>.from(value);
             msg['key'] = key;
             setState(() {
-              final index = _messages.indexWhere((m) => m['key'] == key);
-              if (index != -1) {
-                _messages[index] = msg;
-                _sortMessages();
-              }
+              _applyChangedMessage(msg);
             });
             unawaited(_markMessagesAsReadIfNeeded([msg]));
           } catch (_) {}
@@ -187,8 +192,54 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
-  void _sortMessages() {
-    _messages.sort((a, b) => _timestampOf(a).compareTo(_timestampOf(b)));
+  int _insertIndexForTimestamp(int timestamp) {
+    var low = 0;
+    var high = _messages.length;
+
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (_timestampOf(_messages[mid]) <= timestamp) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+
+    return low;
+  }
+
+  void _insertMessageSorted(Map<String, dynamic> message) {
+    final timestamp = _timestampOf(message);
+    if (_messages.isEmpty || _timestampOf(_messages.last) <= timestamp) {
+      _messages.add(message);
+      return;
+    }
+
+    _messages.insert(_insertIndexForTimestamp(timestamp), message);
+  }
+
+  void _applyChangedMessage(Map<String, dynamic> message) {
+    final key = message['key']?.toString() ?? '';
+    if (key.isEmpty) {
+      return;
+    }
+
+    final existingIndex = _messages.indexWhere((data) => data['key'] == key);
+    if (existingIndex == -1) {
+      _insertMessageSorted(message);
+      return;
+    }
+
+    final existingTimestamp = _timestampOf(_messages[existingIndex]);
+    final updatedTimestamp = _timestampOf(message);
+
+    if (existingTimestamp == updatedTimestamp) {
+      _messages[existingIndex] = message;
+      return;
+    }
+
+    _messages.removeAt(existingIndex);
+    _messages.insert(_insertIndexForTimestamp(updatedTimestamp), message);
   }
 
   int _timestampOf(Map<String, dynamic> data) {
@@ -219,7 +270,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         .map((message) => message['key']?.toString() ?? '')
         .where((key) => key.isNotEmpty)
         .toSet()
-        .toList();
+        .toList(growable: false);
 
     if (keysToUpdate.isEmpty) {
       return;
@@ -237,10 +288,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         return;
       }
 
+      final updatedKeys = keysToUpdate.toSet();
       setState(() {
         for (final message in _messages) {
           final key = message['key']?.toString() ?? '';
-          if (keysToUpdate.contains(key)) {
+          if (updatedKeys.contains(key)) {
             message['isRead'] = true;
           }
         }
@@ -461,7 +513,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               radius: 20,
               backgroundColor: Colors.white24,
               backgroundImage: widget.otherUserImage.isNotEmpty
-                  ? NetworkImage(widget.otherUserImage)
+                  ? CachedNetworkImageProvider(widget.otherUserImage)
                   : null,
               child: widget.otherUserImage.isEmpty
                   ? const Icon(Icons.person, color: Colors.white)
@@ -596,22 +648,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       ),
       child: ListView.builder(
         controller: _scrollController,
+        cacheExtent: 600,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
         itemCount: _messages.length,
         itemBuilder: (context, index) {
           final data = _messages[index];
           final senderId = data['senderId']?.toString() ?? '';
 
-          return ChatMessageBubble(
-            text: data['text']?.toString() ?? '',
-            imageUrl: data['imageUrl']?.toString().trim() ?? '',
-            messageType: _messageTypeFor(data),
-            timeString: _formatTime(_timestampOf(data)),
-            isMe: senderId == widget.currentUserId,
-            isRead: ChatService.isMessageRead(data),
-            otherUserImage: widget.otherUserImage,
-            onImageTap: () =>
-                _showImagePreview(data['imageUrl']?.toString().trim() ?? ''),
+          return KeyedSubtree(
+            key: ValueKey<String>(data['key']?.toString() ?? '$index'),
+            child: ChatMessageBubble(
+              text: data['text']?.toString() ?? '',
+              imageUrl: data['imageUrl']?.toString().trim() ?? '',
+              messageType: _messageTypeFor(data),
+              timeString: _formatTime(_timestampOf(data)),
+              isMe: senderId == widget.currentUserId,
+              isRead: ChatService.isMessageRead(data),
+              otherUserImage: widget.otherUserImage,
+              onImageTap: () =>
+                  _showImagePreview(data['imageUrl']?.toString().trim() ?? ''),
+            ),
           );
         },
       ),

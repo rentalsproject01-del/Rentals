@@ -249,6 +249,9 @@ class RentImagePickerState extends State<RentImagePicker> {
                             ? Image.file(
                                 _selectedImages[index],
                                 fit: BoxFit.cover,
+                                cacheWidth: 960,
+                                filterQuality: FilterQuality.low,
+                                gaplessPlayback: true,
                               )
                             : const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,

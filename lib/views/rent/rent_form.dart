@@ -318,16 +318,19 @@ class RentForm extends StatelessWidget {
     String? Function(String?)?
     customValidator, // <--- ADDED SUPPORT FOR CUSTOM VALIDATORS
   }) {
+    final bool isLocationField = label == "Location";
+    final String actionLabel = isLocationField ? "Edit" : "Change";
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 6,
+            flex: isLocationField ? 7 : 6,
             child: TextFormField(
               controller: controller,
-              readOnly: label == "Location",
+              readOnly: isLocationField,
               keyboardType: isNumber
                   ? TextInputType.number
                   : TextInputType.text,
@@ -338,7 +341,7 @@ class RentForm extends StatelessWidget {
                     if (value == null || value.trim().isEmpty) {
                       return 'Required';
                     }
-                    if (label == "Location" &&
+                    if (isLocationField &&
                         (value.contains("Detecting") ||
                             value.contains("Failed"))) {
                       return 'Valid location needed';
@@ -396,7 +399,7 @@ class RentForm extends StatelessWidget {
 
           if (onActionTap != null)
             Expanded(
-              flex: 4,
+              flex: isLocationField ? 3 : 4,
               child: GestureDetector(
                 onTap: onActionTap,
                 child: Container(
@@ -420,15 +423,20 @@ class RentForm extends StatelessWidget {
                             children: [
                               Image.asset(
                                 'assets/icons/change_icon.png',
-                                height: 14,
+                                height: isLocationField ? 12 : 14,
                               ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                "Change",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 16,
+                              SizedBox(width: isLocationField ? 4 : 6),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    actionLabel,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: isLocationField ? 14 : 16,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],

@@ -18,6 +18,9 @@ class CategoryPage extends StatefulWidget {
 
 class _CategoryPageState extends State<CategoryPage> {
   int _selectedSubCategoryIndex = 0;
+  QuerySnapshot? _lastSnapshot;
+  final Map<String, List<Map<String, dynamic>>> _filteredItemsCache =
+      <String, List<Map<String, dynamic>>>{};
 
   final Map<String, List<String>> categorySubMap = {
     'Fashion': [
@@ -196,7 +199,7 @@ class _CategoryPageState extends State<CategoryPage> {
         final selectedSubCategory =
             currentSubCategories[_selectedSubCategoryIndex];
         final List<Map<String, dynamic>> filteredItems = _filterItems(
-          snapshot.data!.docs,
+          snapshot.data!,
           selectedSubCategory,
         );
 
@@ -233,10 +236,11 @@ class _CategoryPageState extends State<CategoryPage> {
               right: 15,
               bottom: 20,
             ),
+            cacheExtent: 900,
             itemCount: filteredItems.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.68,
+              childAspectRatio: 0.76,
               mainAxisSpacing: 15,
               crossAxisSpacing: 15,
             ),
@@ -261,12 +265,22 @@ class _CategoryPageState extends State<CategoryPage> {
   }
 
   List<Map<String, dynamic>> _filterItems(
-    List<QueryDocumentSnapshot> docs,
+    QuerySnapshot snapshot,
     String selectedSubCategory,
   ) {
+    if (!identical(_lastSnapshot, snapshot)) {
+      _lastSnapshot = snapshot;
+      _filteredItemsCache.clear();
+    }
+
+    final cachedItems = _filteredItemsCache[selectedSubCategory];
+    if (cachedItems != null) {
+      return cachedItems;
+    }
+
     final List<Map<String, dynamic>> filteredItems = [];
 
-    for (final doc in docs) {
+    for (final doc in snapshot.docs) {
       final data = Map<String, dynamic>.from(
         doc.data() as Map<String, dynamic>,
       );
@@ -281,6 +295,7 @@ class _CategoryPageState extends State<CategoryPage> {
       filteredItems.add(data);
     }
 
+    _filteredItemsCache[selectedSubCategory] = filteredItems;
     return filteredItems;
   }
 }

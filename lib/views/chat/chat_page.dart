@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rentals/services/chat_service.dart';
 import 'package:rentals/views/chat/chat_room_page.dart';
 import 'package:rentals/views/chat/widgets/chat_list_tile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -141,7 +141,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildChatList() {
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<List<Map<String, dynamic>>>(
       stream: ChatService.getUserChatRooms(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -159,7 +159,7 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Text(
               "No conversations yet.",
@@ -168,14 +168,14 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        final docs = snapshot.data!.docs;
+        final rooms = snapshot.data!;
 
         return ListView.separated(
           padding: const EdgeInsets.only(
             top: 15,
             bottom: 100,
           ), // Padding for navbar
-          itemCount: docs.length,
+          itemCount: rooms.length,
           separatorBuilder: (context, index) => Divider(
             color: Colors.grey.shade200,
             height: 1,
@@ -183,7 +183,7 @@ class _ChatPageState extends State<ChatPage> {
             endIndent: 20,
           ),
           itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
+            final data = rooms[index];
             return _buildChatTile(data);
           },
         );

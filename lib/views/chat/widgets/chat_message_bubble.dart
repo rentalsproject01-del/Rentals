@@ -45,7 +45,7 @@ class ChatMessageBubble extends StatelessWidget {
               radius: 12,
               backgroundColor: Colors.grey[300],
               backgroundImage: otherUserImage.isNotEmpty
-                  ? NetworkImage(otherUserImage)
+                  ? CachedNetworkImageProvider(otherUserImage)
                   : null,
               child: otherUserImage.isEmpty
                   ? const Icon(Icons.person, size: 16, color: Colors.white)

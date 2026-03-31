@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart' hide Query;
 import 'package:firebase_database/firebase_database.dart' as rtdb show Query;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rentals/services/user_service.dart';
 
 class ChatService {
@@ -153,14 +154,9 @@ class ChatService {
       renterId: renterId,
     );
 
-    final DocumentReference roomRef = _firestore
+    final DocumentReference<Map<String, dynamic>> roomRef = _firestore
         .collection('chat_rooms')
         .doc(chatRoomId);
-    final DocumentSnapshot roomSnap = await roomRef.get();
-
-    if (roomSnap.exists) {
-      return chatRoomId;
-    }
 
     // Safely extract the item image
     String itemImage = '';
@@ -174,8 +170,7 @@ class ChatService {
       }
     }
 
-    // Create the room document in Firestore
-    await roomRef.set({
+    final roomData = <String, dynamic>{
       'chatRoomId': chatRoomId,
       'itemId': itemId,
       'itemTitle': rentalData['title']?.toString() ?? 'Unknown Item',
@@ -187,26 +182,108 @@ class ChatService {
       'renterName': renterData['name']?.toString() ?? 'Unknown Renter',
       'renterImage': renterData['profileImageUrl']?.toString() ?? '',
       'participants': [ownerId, renterId],
-      'lastMessage': '',
-      'lastMessageSenderId': '',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    // Avoid a protected pre-read; merge preserves existing room state when the
+    // deterministic room already exists.
+    await roomRef.set(roomData, SetOptions(merge: true));
 
     return chatRoomId;
   }
 
-  /// Retrieves a stream of all chat rooms the current user is a participant in.
-  static Stream<QuerySnapshot> getUserChatRooms() {
+  /// Retrieves a stream of all chat rooms for the current user.
+  ///
+  /// We merge `ownerId` and `renterId` queries instead of relying on the
+  /// `participants` array so legacy room documents can still be discovered.
+  static Stream<List<Map<String, dynamic>>> getUserChatRooms() {
     final String? uid = getCurrentUserId();
-    if (uid == null) return const Stream.empty();
+    if (uid == null) {
+      return Stream.value(const <Map<String, dynamic>>[]);
+    }
 
-    return _firestore
-        .collection('chat_rooms')
-        .where('participants', arrayContains: uid)
-        .orderBy('updatedAt', descending: true)
-        .snapshots();
+    late final StreamController<List<Map<String, dynamic>>> controller;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? ownerSubscription;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? renterSubscription;
+
+    QuerySnapshot<Map<String, dynamic>>? ownerSnapshot;
+    QuerySnapshot<Map<String, dynamic>>? renterSnapshot;
+
+    int millisFromValue(Object? value) {
+      if (value is Timestamp) {
+        return value.millisecondsSinceEpoch;
+      }
+      if (value is DateTime) {
+        return value.millisecondsSinceEpoch;
+      }
+      if (value is int) {
+        return value;
+      }
+      return 0;
+    }
+
+    void emitMergedRooms() {
+      final mergedRooms = <String, Map<String, dynamic>>{};
+
+      for (final snapshot in [ownerSnapshot, renterSnapshot]) {
+        if (snapshot == null) {
+          continue;
+        }
+
+        for (final doc in snapshot.docs) {
+          final data = Map<String, dynamic>.from(doc.data());
+          final existingChatRoomId =
+              data['chatRoomId']?.toString().trim() ?? '';
+          if (existingChatRoomId.isEmpty) {
+            data['chatRoomId'] = doc.id;
+          }
+          mergedRooms[doc.id] = data;
+        }
+      }
+
+      final rooms = mergedRooms.values.toList()
+        ..sort((a, b) {
+          final updatedAtDiff = millisFromValue(
+            b['updatedAt'],
+          ).compareTo(millisFromValue(a['updatedAt']));
+          if (updatedAtDiff != 0) {
+            return updatedAtDiff;
+          }
+
+          return millisFromValue(
+            b['lastMessageTime'],
+          ).compareTo(millisFromValue(a['lastMessageTime']));
+        });
+
+      controller.add(rooms);
+    }
+
+    controller = StreamController<List<Map<String, dynamic>>>(
+      onListen: () {
+        ownerSubscription = _firestore
+            .collection('chat_rooms')
+            .where('ownerId', isEqualTo: uid)
+            .snapshots()
+            .listen((snapshot) {
+              ownerSnapshot = snapshot;
+              emitMergedRooms();
+            }, onError: controller.addError);
+
+        renterSubscription = _firestore
+            .collection('chat_rooms')
+            .where('renterId', isEqualTo: uid)
+            .snapshots()
+            .listen((snapshot) {
+              renterSnapshot = snapshot;
+              emitMergedRooms();
+            }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await ownerSubscription?.cancel();
+        await renterSubscription?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   /// Retrieves a stream of messages for a specific chat room from Realtime Database (Full snapshot stream).
@@ -315,16 +392,34 @@ class ChatService {
       'isRead': false,
     });
 
-    final DocumentReference roomRef = _firestore
-        .collection('chat_rooms')
-        .doc(chatRoomId);
+    unawaited(
+      _syncChatRoomPreview(
+        chatRoomId: chatRoomId,
+        currentUserId: currentUserId,
+        roomPreview: roomPreview,
+      ),
+    );
+  }
 
-    await roomRef.update({
-      'lastMessage': roomPreview,
-      'lastMessageSenderId': currentUserId,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+  static Future<void> _syncChatRoomPreview({
+    required String chatRoomId,
+    required String currentUserId,
+    required String roomPreview,
+  }) async {
+    try {
+      final DocumentReference<Map<String, dynamic>> roomRef = _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId);
+
+      await roomRef.set({
+        'lastMessage': roomPreview,
+        'lastMessageSenderId': currentUserId,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e, st) {
+      debugPrint('Failed to sync chat room preview: $e\n$st');
+    }
   }
 
   static Future<void> markMessagesAsRead({

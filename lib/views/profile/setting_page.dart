@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../widgets/app_feedback.dart';
+import '../../widgets/app_modal_sheet.dart';
 import 'edit_profile.dart';
 import '../settings/help_support.dart';
 import '../settings/feedback_page.dart';
@@ -11,30 +13,12 @@ class SettingPage extends StatelessWidget {
   const SettingPage({super.key});
 
   Future<void> _handleLogout(BuildContext context) async {
-    final bool? confirmLogout = await showDialog<bool>(
+    final bool? confirmLogout = await showAppConfirmationSheet(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Log Out'),
-          content: const Text('Are you sure you want to log out?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'Log Out',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      title: 'Log Out',
+      message: 'Are you sure you want to log out of your Rentals account?',
+      confirmLabel: 'Log Out',
+      isDestructive: true,
     );
 
     if (confirmLogout == true) {
@@ -55,9 +39,11 @@ class SettingPage extends StatelessWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
+          AppFeedback.showError(
             context,
-          ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+            title: 'Logout Failed',
+            message: 'Logout failed: $e',
+          );
         }
       }
     }

@@ -1,5 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:rentals/widgets/app_network_image.dart';
 
 class ProductImageGallery extends StatefulWidget {
   const ProductImageGallery({super.key, required this.images});
@@ -37,26 +37,12 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
                       setState(() => _currentImageIndex = index);
                     },
                     itemBuilder: (context, index) {
-                      return CachedNetworkImage(
+                      return AppNetworkImage(
                         imageUrl: widget.images[index],
-                        fit: BoxFit.cover,
                         width: double.infinity,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF16BCE6),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.broken_image,
-                            size: 50,
-                            color: Colors.grey,
-                          ),
-                        ),
+                        height: double.infinity,
+                        memCacheWidth: 1440,
+                        memCacheHeight: 1440,
                       );
                     },
                   )

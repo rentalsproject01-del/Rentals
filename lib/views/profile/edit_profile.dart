@@ -8,6 +8,7 @@ import 'package:rentals/services/google_maps_location_service.dart';
 import 'package:rentals/services/user_service.dart';
 import 'package:rentals/core/utils/validators.dart';
 import 'package:rentals/views/rent/location_picker_page.dart';
+import 'package:rentals/widgets/app_feedback.dart';
 
 class EditProfile extends StatefulWidget {
   const EditProfile({super.key});
@@ -117,9 +118,11 @@ class _EditProfileState extends State<EditProfile> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      AppFeedback.showError(
         context,
-      ).showSnackBar(SnackBar(content: Text("Failed to pick image: $e")));
+        title: 'Image Upload Failed',
+        message: "Failed to pick image: $e",
+      );
     }
   }
 
@@ -128,23 +131,29 @@ class _EditProfileState extends State<EditProfile> {
     FocusScope.of(context).unfocus();
 
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
+      AppFeedback.showInfo(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Name cannot be empty.")));
+        title: 'Name Required',
+        message: 'Name cannot be empty.',
+      );
       return;
     }
 
     final phoneError = Validators.validatePhone(_phoneController.text.trim());
     if (phoneError != null) {
-      ScaffoldMessenger.of(
+      AppFeedback.showInfo(
         context,
-      ).showSnackBar(SnackBar(content: Text(phoneError)));
+        title: 'Check Phone Number',
+        message: phoneError,
+      );
       return;
     }
 
     if (_latitude == null || _longitude == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select your location.")),
+      AppFeedback.showInfo(
+        context,
+        title: 'Location Needed',
+        message: 'Please select your location.',
       );
       return;
     }
@@ -184,21 +193,19 @@ class _EditProfileState extends State<EditProfile> {
 
       // 3. Success Behavior
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Profile Updated Successfully!"),
-            backgroundColor: Colors.green,
-          ),
+        AppFeedback.showSuccess(
+          context,
+          title: 'Profile Updated',
+          message: 'Your profile changes were saved successfully.',
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error updating profile: ${e.toString()}"),
-          backgroundColor: Colors.redAccent,
-        ),
+      AppFeedback.showError(
+        context,
+        title: 'Update Failed',
+        message: "Error updating profile: ${e.toString()}",
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

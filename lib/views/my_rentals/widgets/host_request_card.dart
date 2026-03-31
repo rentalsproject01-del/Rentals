@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:rentals/models/transaction_model.dart';
+import 'package:rentals/widgets/app_feedback.dart';
+import 'package:rentals/widgets/app_modal_sheet.dart';
 
 import 'myrent_card_styles.dart';
 
@@ -42,6 +44,13 @@ class _HostRequestCardState extends State<HostRequestCard> {
     setState(() => _isRejecting = true);
     try {
       await widget.onReject();
+      if (mounted) {
+        AppFeedback.showSuccess(
+          context,
+          title: 'Request Rejected',
+          message: 'The rental request was rejected.',
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isRejecting = false);
@@ -52,12 +61,20 @@ class _HostRequestCardState extends State<HostRequestCard> {
   Future<void> _handleAccept() async {
     if (_isBusy) return;
 
-    final selectedDays = await _showAcceptDialog(context);
+    final selectedDays = await showRentalDaysSheet(context);
     if (selectedDays == null) return;
 
     setState(() => _isAccepting = true);
     try {
       await widget.onAccept(selectedDays);
+      if (mounted) {
+        AppFeedback.showSuccess(
+          context,
+          title: 'Request Accepted',
+          message:
+              'Rental approved for $selectedDays day${selectedDays > 1 ? 's' : ''}.',
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isAccepting = false);
@@ -258,33 +275,6 @@ class _HostRequestCardState extends State<HostRequestCard> {
           ),
         ],
       ),
-    );
-  }
-
-  Future<int?> _showAcceptDialog(BuildContext context) {
-    return showDialog<int>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Select Rental Days',
-            style: TextStyle(
-              color: Color(0xFF113F67),
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [1, 2, 3, 4, 5, 6, 7].map((days) {
-              return ListTile(
-                title: Text('$days Day${days > 1 ? 's' : ''}'),
-                onTap: () => Navigator.pop(context, days),
-              );
-            }).toList(),
-          ),
-        );
-      },
     );
   }
 }

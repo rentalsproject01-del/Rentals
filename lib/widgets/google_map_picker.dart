@@ -420,6 +420,8 @@ class _GoogleMapPickerState extends State<GoogleMapPicker> {
   @override
   Widget build(BuildContext context) {
     final selectedSelection = _selectedSelection;
+    final mediaQuery = MediaQuery.of(context);
+    final keyboardVisible = mediaQuery.viewInsets.bottom > 0;
 
     return Stack(
       children: [
@@ -443,27 +445,46 @@ class _GoogleMapPickerState extends State<GoogleMapPicker> {
             _updateSelectionFromCoordinates(position, moveCamera: false);
           },
         ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: Column(
+        Positioned.fill(
+          child: SafeArea(
+            child: Stack(
               children: [
-                _buildSearchSection(),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildHintCard()),
-                    const SizedBox(width: 12),
-                    _buildMapTypeToggle(),
-                  ],
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSearchSection(),
+                      if (!keyboardVisible) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildHintCard()),
+                            const SizedBox(width: 12),
+                            _buildMapTypeToggle(),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                const Spacer(),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _buildFloatingActionButton(),
+                if (!keyboardVisible)
+                  Positioned(
+                    right: 16,
+                    bottom: 180,
+                    child: _buildFloatingActionButton(),
+                  ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: keyboardVisible ? mediaQuery.viewInsets.bottom + 12 : 24,
+                  child: _buildSelectionCard(
+                    selectedSelection,
+                    compact: keyboardVisible,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildSelectionCard(selectedSelection),
               ],
             ),
           ),
@@ -738,7 +759,10 @@ class _GoogleMapPickerState extends State<GoogleMapPicker> {
     );
   }
 
-  Widget _buildSelectionCard(LocationSelectionData? selection) {
+  Widget _buildSelectionCard(
+    LocationSelectionData? selection, {
+    bool compact = false,
+  }) {
     final coordinatesText = selection == null
         ? 'No location selected yet'
         : '${selection.latitude.toStringAsFixed(6)}, ${selection.longitude.toStringAsFixed(6)}';
@@ -747,108 +771,124 @@ class _GoogleMapPickerState extends State<GoogleMapPicker> {
       elevation: 8,
       borderRadius: BorderRadius.circular(24),
       color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: compact ? 150 : 260),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              compact ? 14 : 18,
+              compact ? 14 : 18,
+              compact ? 14 : 18,
+              compact ? 14 : 18,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 42,
-                  width: 42,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16BCE6).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    color: Color(0xFF16BCE6),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: compact ? 36 : 42,
+                      width: compact ? 36 : 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16BCE6).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(compact ? 12 : 14),
+                      ),
+                      child: Icon(
+                        Icons.location_on_rounded,
+                        color: const Color(0xFF16BCE6),
+                        size: compact ? 20 : 24,
+                      ),
+                    ),
+                    SizedBox(width: compact ? 10 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            selection?.location ?? 'Select a place to continue',
+                            maxLines: compact ? 1 : 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: const Color(0xFF113F67),
+                              fontWeight: FontWeight.w800,
+                              fontSize: compact ? 14 : 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            coordinatesText,
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w500,
+                              fontSize: compact ? 12 : 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                SizedBox(height: compact ? 10 : 14),
+                if (_isResolvingSelection) ...[
+                  Row(
                     children: [
-                      Text(
-                        selection?.location ?? 'Select a place to continue',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF113F67),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
+                      const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF16BCE6),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        coordinatesText,
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Confirming the selected address...',
+                          style: TextStyle(
+                            color: const Color(0xFF113F67),
+                            fontWeight: FontWeight.w600,
+                            fontSize: compact ? 12 : 14,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            if (_isResolvingSelection) ...[
-              const Row(
-                children: [
-                  SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Color(0xFF16BCE6),
+                  SizedBox(height: compact ? 10 : 14),
+                ] else if (!compact)
+                  const Text(
+                    'You can refine it by dragging the pin or tapping another spot on the map.',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  SizedBox(width: 10),
-                  Expanded(
+                SizedBox(height: compact ? 10 : 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16BCE6),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: compact ? 12 : 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: selection == null ? null : _confirmSelection,
                     child: Text(
-                      'Confirming the selected address...',
+                      'Use this location',
                       style: TextStyle(
-                        color: Color(0xFF113F67),
-                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 14 : 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-            ] else
-              const Text(
-                'You can refine it by dragging the pin or tapping another spot on the map.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16BCE6),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: selection == null ? null : _confirmSelection,
-                child: const Text(
-                  'Use this location',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

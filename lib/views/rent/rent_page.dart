@@ -8,6 +8,7 @@ import 'package:rentals/views/rent/rent_form.dart';
 import 'package:rentals/views/rent/rent_image_picker.dart';
 import 'package:rentals/views/rent/rent_category_selector.dart';
 import 'package:rentals/views/rent/rent_submit_service.dart';
+import 'package:rentals/widgets/app_feedback.dart';
 
 class RentPage extends StatefulWidget {
   const RentPage({super.key});
@@ -126,65 +127,6 @@ class _RentPageState extends State<RentPage> {
     }
   }
 
-  Future<void> _showTopSuccessBanner(String message) async {
-    if (!mounted) return;
-
-    final overlay = Overlay.of(context);
-    final topInset = MediaQuery.of(context).padding.top;
-
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: topInset + 12,
-        left: 16,
-        right: 16,
-        child: Material(
-          color: Colors.transparent,
-          child: SafeArea(
-            bottom: false,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF113F67),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFF16BCE6),
-                    size: 22,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-    await Future.delayed(const Duration(milliseconds: 1100));
-    overlayEntry.remove();
-  }
-
   // --- UPLOAD & SAVE LOGIC ---
   Future<void> _uploadAndSaveItem() async {
     if (_isUploadInFlight) return;
@@ -194,17 +136,19 @@ class _RentPageState extends State<RentPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least 1 image')),
+      AppFeedback.showInfo(
+        context,
+        title: 'Images Required',
+        message: 'Please add at least 1 image.',
       );
       return;
     }
 
     if (_latitude == null || _longitude == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please wait for location or set one manually.'),
-        ),
+      AppFeedback.showInfo(
+        context,
+        title: 'Location Needed',
+        message: 'Please wait for location or set one manually.',
       );
       return;
     }
@@ -230,7 +174,11 @@ class _RentPageState extends State<RentPage> {
       );
 
       if (!mounted) return;
-      await _showTopSuccessBanner('Item uploaded successfully!');
+      AppFeedback.showSuccess(
+        context,
+        title: 'Item Uploaded',
+        message: 'Your item was uploaded successfully.',
+      );
 
       if (!mounted) return;
       if (Navigator.canPop(context)) {
@@ -238,11 +186,10 @@ class _RentPageState extends State<RentPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        AppFeedback.showError(
+          context,
+          title: 'Upload Failed',
+          message: 'Upload failed: $e',
         );
       }
     } finally {

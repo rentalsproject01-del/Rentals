@@ -10,7 +10,7 @@ import 'package:rentals/views/search/search_page.dart';
 import 'package:rentals/category_page.dart';
 import 'package:rentals/services/home_banner_service.dart';
 import 'package:rentals/services/rental_service.dart';
-import 'package:rentals/widgets/animated_like_button.dart';
+import 'package:rentals/widgets/deal_item_card.dart';
 import 'package:rentals/widgets/animated_search_bar.dart';
 import 'package:rentals/widgets/pressable_scale.dart';
 
@@ -187,93 +187,32 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle("Your Rent.., Your Way..."),
-
-                    _buildBannerSection(),
-
-                    _buildSectionTitle("Top Deals"),
-
-                    StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _rentalsStream,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF113F67),
-                              ),
-                            ),
-                          );
-                        }
-
-                        if (!snapshot.hasData) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Center(
-                              child: Text(
-                                "No items available yet",
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-
-                        final items = snapshot.data!;
-                        if (items.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Center(
-                              child: Text(
-                                "No items available yet",
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          cacheExtent: 800,
-                          itemCount: items.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.72,
-                                mainAxisSpacing: 15,
-                                crossAxisSpacing: 15,
-                              ),
-                          itemBuilder: (context, index) {
-                            return _buildDealCard(context, items[index]);
-                          },
-                        );
-                      },
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
+              ),
+              child: CustomScrollView(
+                cacheExtent: 1000,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle("Your Rent.., Your Way..."),
+                        _buildBannerSection(),
+                        _buildSectionTitle("Top Deals"),
+                      ],
                     ),
-
-                    const SizedBox(height: 110),
-                  ],
-                ),
+                  ),
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _rentalsStream,
+                    builder: (context, snapshot) =>
+                        _buildDealsSliver(context, snapshot),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                ],
               ),
             ),
           ),
@@ -587,6 +526,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildDealsSliver(
+    BuildContext context,
+    AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFF113F67)),
+          ),
+        ),
+      );
+    }
+
+    final items = snapshot.data;
+    if (items == null || items.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(
+            child: Text(
+              "No items available yet",
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.76,
+          mainAxisSpacing: 15,
+          crossAxisSpacing: 15,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          return _buildDealCard(context, items[index]);
+        }, childCount: items.length),
+      ),
+    );
+  }
+
   Widget _buildAssetOfferImage(String assetPath) {
     return Container(
       color: const Color(0xFFF3F8FD),
@@ -642,23 +631,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDealCard(BuildContext context, Map<String, dynamic> deal) {
-    String imageUrl = '';
-
-    if (deal['imageUrls'] != null) {
-      if (deal['imageUrls'] is List) {
-        final list = (deal['imageUrls'] as List)
-            .where((e) => e != null && e.toString().trim().isNotEmpty)
-            .toList();
-        if (list.isNotEmpty) {
-          imageUrl = list[0].toString();
-        }
-      } else if (deal['imageUrls'] is String &&
-          deal['imageUrls'].toString().trim().isNotEmpty) {
-        imageUrl = deal['imageUrls'].toString().trim();
-      }
-    }
-
-    return PressableScale(
+    return DealItemCard(
+      deal: deal,
       onTap: () {
         Navigator.push(
           context,
@@ -667,178 +641,6 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
-      scaleDown: 0.985,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: const Color(0xFF113F67).withValues(alpha: 0.3),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: imageUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.cover,
-                              height: 100,
-                              width: double.infinity,
-                              placeholder: (context, url) => Container(
-                                height: 100,
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xFF16BCE6),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                height: 100,
-                                color: Colors.grey[200],
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              height: 100,
-                              width: double.infinity,
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                color: Colors.grey,
-                              ),
-                            ),
-                    ),
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF113F67,
-                          ).withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: AnimatedLikeButton(deal: deal),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          deal['title']?.toString() ?? 'Unknown Item',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            color: Color(0xFF113F67),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 12,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                deal['ownerName']?.toString() ??
-                                    'Unknown Owner',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          "Rs. ${deal['price'] ?? '0'}",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14,
-                            color: Color(0xFF113F67),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          width: 38,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: const Color(0xFF113F67),
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              "assets/icons/rent_icon.png",
-                              height: 12,
-                              width: 12,
-                              color: const Color(0xFF113F67),
-                              errorBuilder: (c, e, s) => const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Color(0xFF113F67),
-                                size: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
