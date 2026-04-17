@@ -18,6 +18,7 @@ class CategoryPage extends StatefulWidget {
 
 class _CategoryPageState extends State<CategoryPage> {
   int _selectedSubCategoryIndex = 0;
+  late final Stream<QuerySnapshot> _rentalsStream;
   QuerySnapshot? _lastSnapshot;
   final Map<String, List<Map<String, dynamic>>> _filteredItemsCache =
       <String, List<Map<String, dynamic>>>{};
@@ -137,6 +138,21 @@ class _CategoryPageState extends State<CategoryPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _rentalsStream = RentalService.getAllRentals();
+  }
+
+  @override
+  void didUpdateWidget(covariant CategoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.categoryName != widget.categoryName) {
+      _selectedSubCategoryIndex = 0;
+      _filteredItemsCache.clear();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF113F67),
@@ -179,15 +195,19 @@ class _CategoryPageState extends State<CategoryPage> {
 
   Widget _buildRightGrid() {
     return StreamBuilder<QuerySnapshot>(
-      stream: RentalService.getAllRentals(),
+      stream: _rentalsStream,
+      initialData: _lastSnapshot,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        final QuerySnapshot? effectiveSnapshot = snapshot.data ?? _lastSnapshot;
+
+        if (effectiveSnapshot == null &&
+            snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF113F67)),
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (effectiveSnapshot == null || effectiveSnapshot.docs.isEmpty) {
           return const Center(
             child: Text(
               'No items available',
@@ -199,7 +219,7 @@ class _CategoryPageState extends State<CategoryPage> {
         final selectedSubCategory =
             currentSubCategories[_selectedSubCategoryIndex];
         final List<Map<String, dynamic>> filteredItems = _filterItems(
-          snapshot.data!,
+          effectiveSnapshot,
           selectedSubCategory,
         );
 
@@ -212,53 +232,35 @@ class _CategoryPageState extends State<CategoryPage> {
           );
         }
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.03, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              ),
+        return GridView.builder(
+          padding: const EdgeInsets.only(
+            top: 25,
+            left: 15,
+            right: 15,
+            bottom: 20,
+          ),
+          cacheExtent: 900,
+          itemCount: filteredItems.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.76,
+            mainAxisSpacing: 15,
+            crossAxisSpacing: 15,
+          ),
+          itemBuilder: (context, index) {
+            final deal = filteredItems[index];
+            return CategoryDealCard(
+              deal: deal,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProductPage(productData: deal),
+                  ),
+                );
+              },
             );
           },
-          child: GridView.builder(
-            key: ValueKey<String>(selectedSubCategory),
-            padding: const EdgeInsets.only(
-              top: 25,
-              left: 15,
-              right: 15,
-              bottom: 20,
-            ),
-            cacheExtent: 900,
-            itemCount: filteredItems.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.76,
-              mainAxisSpacing: 15,
-              crossAxisSpacing: 15,
-            ),
-            itemBuilder: (context, index) {
-              final deal = filteredItems[index];
-              return CategoryDealCard(
-                deal: deal,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProductPage(productData: deal),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
         );
       },
     );

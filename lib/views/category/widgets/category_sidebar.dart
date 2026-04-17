@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:rentals/widgets/pressable_scale.dart';
 
 class CategorySidebar extends StatefulWidget {
   const CategorySidebar({
@@ -50,11 +49,7 @@ class _CategorySidebarState extends State<CategorySidebar> {
 
     final maxExtent = _scrollController.position.maxScrollExtent;
     final targetOffset = (widget.selectedIndex * _itemExtent) - 24;
-    _scrollController.animateTo(
-      targetOffset.clamp(0, maxExtent).toDouble(),
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-    );
+    _scrollController.jumpTo(targetOffset.clamp(0, maxExtent).toDouble());
   }
 
   @override
@@ -86,9 +81,7 @@ class _CategorySidebarState extends State<CategorySidebar> {
           height: contentHeight,
           child: Stack(
             children: [
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
+              Positioned(
                 left: (_sidebarWidth - _highlightSize) / 2,
                 top: highlightTop,
                 child: IgnorePointer(
@@ -132,62 +125,42 @@ class _CategorySidebarState extends State<CategorySidebar> {
 
                     return SizedBox(
                       height: _itemExtent,
-                      child: PressableScale(
+                      child: GestureDetector(
                         onTap: () => widget.onSelected(index),
-                        scaleDown: 0.94,
+                        behavior: HitTestBehavior.opaque,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             vertical: _itemVerticalPadding,
                           ),
                           child: Column(
                             children: [
-                              AnimatedScale(
-                                scale: isSelected ? 1.06 : 1,
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOutCubic,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeOutCubic,
-                                  height: _highlightSize,
-                                  width: _highlightSize,
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? Colors.transparent
-                                        : const Color(0xFF70C6E9),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Center(
-                                    child: AnimatedSwitcher(
-                                      duration: const Duration(
-                                        milliseconds: 180,
-                                      ),
-                                      switchInCurve: Curves.easeOutCubic,
-                                      switchOutCurve: Curves.easeInCubic,
-                                      child: Image.asset(
-                                        'assets/icons/$formattedAssetName.png',
-                                        key: ValueKey<String>(
-                                          '$formattedAssetName-$isSelected',
+                              Container(
+                                height: _highlightSize,
+                                width: _highlightSize,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.transparent
+                                      : const Color(0xFF70C6E9),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Image.asset(
+                                    'assets/icons/$formattedAssetName.png',
+                                    height: 40,
+                                    width: 40,
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Icon(
+                                          isSelected
+                                              ? Icons.check_circle
+                                              : Icons.image,
+                                          color: Colors.white,
+                                          size: 24,
                                         ),
-                                        height: 40,
-                                        width: 40,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Icon(
-                                                  isSelected
-                                                      ? Icons.check_circle
-                                                      : Icons.image,
-                                                  color: Colors.white,
-                                                  size: 24,
-                                                ),
-                                      ),
-                                    ),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOutCubic,
+                              DefaultTextStyle(
                                 style: TextStyle(
                                   color: isSelected
                                       ? const Color(0xFF113F67)
